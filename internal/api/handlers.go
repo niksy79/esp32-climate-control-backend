@@ -57,6 +57,10 @@ type Handler struct {
 func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *Handler {
 	h := &Handler{svc: svc, authHandler: authHandler}
 
+	// CORS middleware runs on every matched route, including the OPTIONS
+	// catch-all registered at the bottom of this function.
+	r.Use(corsMiddleware)
+
 	// ── Unauthenticated routes ────────────────────────────────────────────────
 	r.HandleFunc("/api/auth/register", authHandler.Register).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/login", authHandler.Login).Methods(http.MethodPost)
@@ -89,6 +93,10 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(alertBase, h.handleCreateAlertRule).Methods(http.MethodPost)
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleUpdateAlertRule).Methods(http.MethodPut)
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
+
+	// Catch-all OPTIONS handler so CORS preflight requests match a route and
+	// the corsMiddleware can respond with 200 OK + CORS headers.
+	r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 	return h
 }
