@@ -67,8 +67,8 @@ type Reading struct {
 
 // CompressorCycle mirrors DataManager::CompressorCycle.
 type CompressorCycle struct {
-	WorkTime  uint32    `json:"work_time_s"`
-	RestTime  uint32    `json:"rest_time_s"`
+	WorkTime  uint32    `json:"work_time"`
+	RestTime  uint32    `json:"rest_time"`
 	Temp      float32   `json:"temperature"`
 	Humidity  float32   `json:"humidity"`
 	CreatedAt time.Time `json:"created_at"`

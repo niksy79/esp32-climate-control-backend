@@ -7,7 +7,26 @@
       "Bash(go get:*)",
       "Bash(chmod:*)",
       "Bash(go vet:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(MQTT_HOST=192.168.68.117 MQTT_PORT=1883 ./scripts/test-ws.sh tenant1 773C)",
+      "Bash(pkill -f \"go run ./cmd/server/main.go\")",
+      "Bash(pkill -f \"climate-backend\")",
+      "Bash(xargs kill:*)",
+      "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' -d '{\"\"\"\"tenant_id\"\"\"\":\"\"\"\"tenant1\"\"\"\",\"\"\"\"email\"\"\"\":\"\"\"\"admin@example.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"secret\"\"\"\"}')",
+      "Bash(curl -s -H 'Authorization: Bearer $\\(cat /tmp/token.txt\\)' http://localhost:8080/api/tenants/tenant1/devices/773C/alert-rules)",
+      "Bash(curl:*)",
+      "Bash(tee /tmp/login.json)",
+      "Bash(pkill -f cmd/server/main.go)",
+      "Bash(kill -9 96978)",
+      "Bash(pkill -f \"go run ./cmd/server\")",
+      "Bash(fuser -k 8080/tcp)",
+      "Bash(mosquitto_pub -h 192.168.68.117 -t \"climate/tenant1/773C/compressor\" -m '{\"\"work_time\"\":120,\"\"rest_time\"\":300,\"\"temperature\"\":28.5,\"\"humidity\"\":40.0}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(psql:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(fuser 8080/tcp)",
+      "Bash(mosquitto_pub -h 192.168.68.117 -t \"climate/tenant1/773C/logs\" -m \"Test log message from mosquitto\")"
     ]
   }
 }

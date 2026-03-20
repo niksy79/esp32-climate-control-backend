@@ -91,7 +91,7 @@ func (e *Engine) Evaluate(tenantID, deviceID string, r models.Reading) {
 	copy(rules, src)
 	e.mu.RUnlock()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	for _, rule := range rules {
 		if !rule.Enabled {
 			continue

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -24,6 +25,13 @@ import (
 	"climate-backend/internal/ws"
 )
 
+// ConfigPublisher can push a config payload to a device over MQTT.
+// Implemented by mqtt.Client; defined here as an interface so the api package
+// does not import the mqtt package directly.
+type ConfigPublisher interface {
+	PublishConfig(tenantID, deviceID string, payload any) error
+}
+
 // Services bundles all manager dependencies.
 type Services struct {
 	DB        *db.DB
@@ -35,6 +43,7 @@ type Services struct {
 	Storage   *storage.Manager
 	Hub       *ws.Hub
 	Alerts    *alerts.Engine
+	MQTT      ConfigPublisher // nil-safe: publish is skipped when nil
 }
 
 // Handler holds the HTTP handler and its dependencies.
@@ -69,6 +78,7 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(base+"/{device_id}/current", h.handleCurrent).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/status", h.handleStatus).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/history", h.handleHistory).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/compressor-cycles", h.handleCompressorCycles).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/errors", h.handleErrors).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleGetSettings).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
@@ -138,6 +148,31 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) handleCompressorCycles(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	days := 7
+	if d := r.URL.Query().Get("days"); d != "" {
+		if n, err := parseInt(d); err == nil && n > 0 {
+			days = n
+		}
+	}
+	cycles, err := h.svc.DB.GetCompressorCycles(r.Context(), tenantID, deviceID, days)
+	if err != nil {
+		http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if cycles == nil {
+		cycles = []models.CompressorCycle{}
+	}
+	jsonResp(w, map[string]any{
+		"tenant_id": tenantID,
+		"device_id": deviceID,
+		"days":      days,
+		"count":     len(cycles),
+		"cycles":    cycles,
+	})
+}
+
 func (h *Handler) handleErrors(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
 	errs := h.svc.Errors.GetActive(tenantID, deviceID)
@@ -198,6 +233,26 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// Push temp/humidity config to the device over MQTT.
+	// Only include fields whose settings were present in this request.
+	// A publish failure does not fail the HTTP response — settings are already
+	// persisted to DB and will be re-applied on next device connection.
+	if h.svc.MQTT != nil && (body.Temp != nil || body.Humidity != nil) {
+		cfg := map[string]float32{}
+		if body.Temp != nil {
+			cfg["temp_target"] = body.Temp.Target
+			cfg["temp_offset"] = body.Temp.Offset
+		}
+		if body.Humidity != nil {
+			cfg["hum_target"] = body.Humidity.Target
+			cfg["hum_offset"] = body.Humidity.Offset
+		}
+		if err := h.svc.MQTT.PublishConfig(tenantID, deviceID, cfg); err != nil {
+			log.Printf("api: mqtt config publish %s/%s: %v", tenantID, deviceID, err)
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

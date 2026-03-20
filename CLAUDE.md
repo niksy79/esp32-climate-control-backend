@@ -38,6 +38,7 @@ climate-backend (Go)
   ├── internal/db         all SQL queries, schema migration, connection pool
   ├── internal/api        gorilla/mux REST handlers
   ├── internal/ws         gorilla/websocket per-tenant broadcast hub
+  ├── internal/devicelog  plain-text log file writer for ESP32 log messages
   └── internal/*mgr       in-memory state caches (sensor, control, relay, fan,
                           light, status, errmanager, storage)
      │
@@ -107,9 +108,9 @@ climate-backend/
 │   │   hub_test.go             Unit tests for the hub.
 │   │
 │   ├── datastore/manager.go    Wraps DB reads/writes for sensor readings and
-│   │                           compressor cycles. Stamps every reading with
-│   │                           time.Now().UTC() — ESP32 payload timestamp is
-│   │                           ignored for storage (device sends local time).
+│   │                           compressor cycles. Stamps every reading AND
+│   │                           every compressor cycle with time.Now().UTC() —
+│   │                           ESP32 payload timestamps are ignored for storage.
 │   │                           Calls EnsureDevice before every insert.
 │   │
 │   ├── sensor/manager.go       In-memory latest SensorReading + SensorHealth
@@ -134,10 +135,18 @@ climate-backend/
 │   ├── errmanager/manager.go   In-memory map[ErrorType]*ErrorStatus per
 │   │                           tenant/device. ReplaceAll on every errors message.
 │   │
-│   └── storage/manager.go      In-memory settings cache (TempSettings,
-│                               HumiditySettings, FanSettings, LightSettings,
-│                               SystemSettings, DisplaySettings) backed by
-│                               device_settings table. Persists on every Save*.
+│   ├── storage/manager.go      In-memory settings cache (TempSettings,
+│   │                           HumiditySettings, FanSettings, LightSettings,
+│   │                           SystemSettings, DisplaySettings) backed by
+│   │                           device_settings table. Persists on every Save*.
+│   │
+│   └── devicelog/writer.go     Writes plain-text ESP32 log messages to
+│                               logs/<tenantID>/<deviceID>.log (relative to
+│                               working directory). Creates directories on first
+│                               write. One line per message:
+│                               "2026-03-20T22:07:34Z [deviceID] message\n"
+│                               Exported function: Write(tenantID, deviceID,
+│                               message string) error
 │
 ├── scripts/
 │   └── test-ws.sh              End-to-end WebSocket smoke test (websocat/wscat).
@@ -171,7 +180,9 @@ type User   struct  // ID (UUID), TenantID, Email, PasswordHash (json:"-"), Role
 type SensorHealth  int    // SensorHealthGood, SensorHealthWarning, SensorHealthError
 type SensorReading struct  // Temperature, Humidity, Timestamp, FallbackTime, Health
 type Reading       struct  // Temperature, Humidity, Timestamp, FallbackTime  (DB form)
-type CompressorCycle struct // WorkTime, RestTime (uint32 seconds), Temp, Humidity (float32), CreatedAt
+type CompressorCycle struct // WorkTime json:"work_time", RestTime json:"rest_time" (uint32 seconds),
+                            // Temp, Humidity (float32), CreatedAt
+                            // JSON tags are work_time/rest_time — NOT work_time_s/rest_time_s
 ```
 
 ### Settings
@@ -360,6 +371,7 @@ All routes require `Authorization: Bearer <token>` with matching tenant_id.
 | `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/current` | Latest sensor reading from **in-memory** sensor manager |
 | `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/status` | System status (DB) + relay states + compressor stats + error flags (in-memory) |
 | `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/history?days=N` | Readings from DB; N capped at 31, max 144 records |
+| `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/compressor-cycles?days=N` | Compressor cycles from DB; defaults to 7 days, max 200 records |
 | `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/errors` | Active errors from in-memory error manager |
 | `GET` | `/api/tenants/{tenant_id}/devices/{device_id}/settings` | All settings from in-memory storage manager (backed by DB) |
 
@@ -367,7 +379,7 @@ All routes require `Authorization: Bearer <token>` with matching tenant_id.
 
 | Method | Path | Description |
 |---|---|---|
-| `POST`   | `/api/tenants/{tenant_id}/devices/{device_id}/settings` | Persist settings to DB (accepts partial: temp, humidity, fan, light) |
+| `POST`   | `/api/tenants/{tenant_id}/devices/{device_id}/settings` | Persist settings to DB (accepts partial: temp, humidity, fan, light). If temp or humidity fields are present, also publishes a config payload to `climate/<tenant>/<device>/config` via MQTT (QoS 1). HTTP 204 is returned regardless of MQTT publish result. |
 | `POST`   | `/api/tenants/{tenant_id}/devices/{device_id}/mode` | **TODO stub** — does not yet publish MQTT command |
 | `GET`    | `/api/tenants/{tenant_id}/devices/{device_id}/alert-rules` | List alert rules |
 | `POST`   | `/api/tenants/{tenant_id}/devices/{device_id}/alert-rules` | Create alert rule |
@@ -404,6 +416,9 @@ Pushed to all subscribers of a tenant after every sensor reading:
 }
 ```
 
+`timestamp` is always `time.Now().UTC()` stamped by the backend at broadcast time —
+the ESP32 payload timestamp is discarded (device sends local time, not UTC).
+
 ---
 
 ## MQTT Topic Structure
@@ -423,17 +438,21 @@ climate / <tenant_id> / <device_id> / <subtopic>
 | `errors`     | `[]models.ErrorStatus`   | `OnErrors`           |
 | `compressor` | `models.CompressorCycle` | `OnCompressorCycle`  |
 | `identity`   | `models.DeviceIdentity`  | `OnIdentity`         |
+| `logs`       | plain text string        | `OnLog`              |
 
 Unknown subtopics are silently discarded.
 
 ### Outbound subtopics (backend → device)
 
-```
-climate/<tenant_id>/<device_id>/cmd/<command>
-```
+| Topic | Method | Payload | Trigger |
+|---|---|---|---|
+| `climate/<tenant>/<device>/cmd/<command>` | `PublishCommand(tenantID, deviceID, command, payload)` | any JSON | (stub — mode switch not yet wired) |
+| `climate/<tenant>/<device>/config` | `PublishConfig(tenantID, deviceID, payload)` | `{"temp_target":18.5,"temp_offset":0.5,"hum_target":83,"hum_offset":3}` | `POST /settings` with temp or humidity fields |
 
-Published via `mqtt.Client.PublishCommand(tenantID, deviceID, command, payload)`.
-No commands are currently issued by any implemented handler (mode switch is a stub).
+`PublishConfig` publishes QoS 1, retained=false. Only the fields present in the
+`POST /settings` request body are included in the payload — omitted fields are not
+sent. The `api` package calls it through the `ConfigPublisher` interface (defined in
+`api/handlers.go`) so the api package does not import the mqtt package directly.
 
 ### Broker subscription
 
@@ -718,12 +737,14 @@ In docker-compose, `DATABASE_URL` uses host `timescaledb` and `MQTT_URL` uses
 | Feature | Status |
 |---|---|
 | `POST /mode` MQTT command dispatch | Handler exists, parses request, but **never publishes to MQTT**. Stub only. |
-| FCM push notifications | `push` channel fires a `log.Printf` only. No FCM client or token management. |
+| FCM push notifications | `push` channel fires a `log.Printf` only. No FCM client or token management. Deferred until Flutter app is built. |
+| React web app | Planned. Will live in `web/` directory. Not yet started. |
 | Device-to-backend MQTT auth | Broker allows anonymous connections. API key / TLS client cert auth is planned. |
 | TimescaleDB hypertables | Extension is available in the container image but `SELECT create_hypertable(...)` is never called. `readings` and `compressor_cycles` are plain PostgreSQL tables. |
 | Cloudflare tunnel | Service definition exists in `docker-compose.yml` but is commented out. |
 | Command acknowledgement | No mechanism for devices to confirm receipt of a `cmd/` message. |
 | Device deregistration / deletion | No API or MQTT handler to remove a device from the database. |
+| HTTP endpoint for device logs | `logs/<tenantID>/<deviceID>.log` files are written to disk but not exposed over HTTP. |
 
 ---
 
@@ -774,6 +795,10 @@ any DB or in-memory write, discarding the ESP32 payload timestamp (device sends 
 local time, not UTC). `db.InsertReading` also uses `time.Now().UTC()` directly as
 a second independent safeguard. Both guards must remain.
 
+`datastore.AddCompressorCycle` unconditionally sets `c.CreatedAt = time.Now().UTC()`
+for the same reason — the MQTT payload does not include a `created_at` field, so
+without this stamp the column defaults to the Go zero time (`0001-01-01`).
+
 ### Adding a new MQTT subtopic
 
 1. Add a handler field to `mqtt.Handlers` in `mqtt/client.go`.
@@ -811,10 +836,10 @@ single-level wildcards. Changing segment positions breaks all deployed devices.
 call `db.EnsureDevice` unconditionally. Removing it causes FK violations for devices
 that have not yet published an `identity` message.
 
-**Server-side UTC timestamp** — both `datastore.AddReading` and `db.InsertReading`
-use `time.Now().UTC()` unconditionally. The ESP32 sends local time (EET UTC+2)
-which must not be trusted for `recorded_at`. Restoring the ESP32 timestamp would
-silently break all time-range queries.
+**Server-side UTC timestamp** — `datastore.AddReading`, `db.InsertReading`, and
+`datastore.AddCompressorCycle` all stamp `time.Now().UTC()` unconditionally.
+The ESP32 sends local time (EET UTC+2) which must not be trusted for `recorded_at`
+or `created_at`. Restoring any ESP32 timestamp would silently break time-range queries.
 
 **Device-to-backend MQTT auth** — ESP32 devices use anonymous MQTT. Do not add JWT
 validation to any MQTT code path.

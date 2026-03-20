@@ -248,6 +248,33 @@ func (d *DB) InsertCompressorCycle(ctx context.Context, tenantID, deviceID strin
 	return err
 }
 
+// GetCompressorCycles returns up to 200 compressor cycle records for a
+// tenant/device pair within the last N days, newest first.
+func (d *DB) GetCompressorCycles(ctx context.Context, tenantID, deviceID string, days int) ([]models.CompressorCycle, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT work_time_s, rest_time_s, temperature, humidity, created_at
+		FROM compressor_cycles
+		WHERE tenant_id = $1 AND device_id = $2
+		  AND created_at >= NOW() - ($3 * INTERVAL '1 day')
+		ORDER BY created_at DESC
+		LIMIT 200`,
+		tenantID, deviceID, days,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("db: get compressor cycles %s/%s: %w", tenantID, deviceID, err)
+	}
+	defer rows.Close()
+	var cycles []models.CompressorCycle
+	for rows.Next() {
+		var c models.CompressorCycle
+		if err := rows.Scan(&c.WorkTime, &c.RestTime, &c.Temp, &c.Humidity, &c.CreatedAt); err != nil {
+			return nil, fmt.Errorf("db: scan compressor cycle %s/%s: %w", tenantID, deviceID, err)
+		}
+		cycles = append(cycles, c)
+	}
+	return cycles, rows.Err()
+}
+
 // ---------------------------------------------------------------------------
 // System status
 // ---------------------------------------------------------------------------

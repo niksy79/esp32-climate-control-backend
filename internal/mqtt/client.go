@@ -34,6 +34,7 @@ type Handlers struct {
 	OnErrors          func(tenantID, deviceID string, errs []models.ErrorStatus)
 	OnCompressorCycle func(tenantID, deviceID string, c models.CompressorCycle)
 	OnIdentity        func(tenantID, deviceID string, id models.DeviceIdentity)
+	OnLog             func(tenantID, deviceID, message string)
 }
 
 // Client wraps a Paho MQTT client and routes messages to Handlers.
@@ -84,6 +85,20 @@ func New(cfg Config, h Handlers) (*Client, error) {
 // Disconnect cleanly disconnects from the broker.
 func (c *Client) Disconnect() {
 	c.paho.Disconnect(500)
+}
+
+// PublishConfig publishes a JSON config payload to a specific tenant's device.
+// Topic: <prefix>/<tenantID>/<deviceID>/config  (QoS 1, not retained)
+// The ESP32 subscribes to this topic and applies received fields immediately.
+func (c *Client) PublishConfig(tenantID, deviceID string, payload any) error {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	topic := fmt.Sprintf("%s/%s/%s/config", c.topicPfx, tenantID, deviceID)
+	tok := c.paho.Publish(topic, 1, false, b)
+	tok.Wait()
+	return tok.Error()
 }
 
 // PublishCommand publishes a JSON command to a specific tenant's device.
@@ -205,6 +220,12 @@ func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
 		id.TenantID = tenantID
 		id.DeviceID = deviceID
 		c.h.OnIdentity(tenantID, deviceID, id)
+
+	case "logs":
+		if c.h.OnLog == nil {
+			return
+		}
+		c.h.OnLog(tenantID, deviceID, string(payload))
 
 	default:
 		// unknown subtopic – silently ignore

@@ -16,6 +16,7 @@ import (
 
 	"climate-backend/internal/alerts"
 	"climate-backend/internal/api"
+	"climate-backend/internal/devicelog"
 	"climate-backend/internal/auth"
 	"climate-backend/internal/control"
 	"climate-backend/internal/datastore"
@@ -121,7 +122,7 @@ func main() {
 				DeviceID:    deviceID,
 				Temperature: r.Temperature,
 				Humidity:    r.Humidity,
-				Timestamp:   r.Timestamp,
+				Timestamp:   time.Now().UTC(),
 			})
 		},
 
@@ -163,6 +164,12 @@ func main() {
 			}
 		},
 
+		OnLog: func(tenantID, deviceID, message string) {
+			if err := devicelog.Write(tenantID, deviceID, message); err != nil {
+				log.Printf("devicelog: write %s/%s: %v", tenantID, deviceID, err)
+			}
+		},
+
 		OnIdentity: func(tenantID, deviceID string, id models.DeviceIdentity) {
 			if err := database.UpsertDevice(ctx, id); err != nil {
 				log.Printf("db: upsert device %s/%s: %v", tenantID, deviceID, err)
@@ -191,6 +198,7 @@ func main() {
 		Storage:   storageMgr,
 		Hub:       hub,
 		Alerts:    alertEngine,
+		MQTT:      mqttCli,
 	}, hub, authHandler)
 
 	srv := &http.Server{

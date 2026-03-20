@@ -44,6 +44,7 @@ func (m *Manager) AddReading(ctx context.Context, tenantID, deviceID string, r m
 // AddCompressorCycle stores a compressor cycle record.
 // Auto-registers the device if it is not yet known.
 func (m *Manager) AddCompressorCycle(ctx context.Context, tenantID, deviceID string, c models.CompressorCycle) error {
+	c.CreatedAt = time.Now().UTC()
 	if err := m.db.EnsureDevice(ctx, tenantID, deviceID); err != nil {
 		return err
 	}
