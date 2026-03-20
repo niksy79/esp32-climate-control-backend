@@ -1,0 +1,19 @@
+# Binary
+climate-backend
+/bin/
+
+# Environment (contains credentials)
+.env
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

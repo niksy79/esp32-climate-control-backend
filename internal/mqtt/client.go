@@ -1,0 +1,212 @@
+// Package mqtt subscribes to topics published by the ESP32 climate controller
+// and dispatches decoded payloads to registered handlers.
+//
+// Multi-tenant topic layout:
+//
+//	climate/<tenant_id>/<device_id>/sensor       – SensorReading JSON
+//	climate/<tenant_id>/<device_id>/status       – SystemStatus JSON
+//	climate/<tenant_id>/<device_id>/relays       – DeviceStates JSON
+//	climate/<tenant_id>/<device_id>/settings     – aggregated settings JSON
+//	climate/<tenant_id>/<device_id>/errors       – []ErrorStatus JSON
+//	climate/<tenant_id>/<device_id>/compressor   – CompressorCycle JSON
+//	climate/<tenant_id>/<device_id>/identity     – DeviceIdentity JSON
+package mqtt
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	paho "github.com/eclipse/paho.mqtt.golang"
+
+	"climate-backend/internal/models"
+)
+
+// Handlers groups all inbound-message callbacks.
+// Every callback receives tenantID and deviceID extracted from the topic.
+type Handlers struct {
+	OnSensorReading   func(tenantID, deviceID string, r models.Reading)
+	OnSystemStatus    func(tenantID, deviceID string, s models.SystemStatus)
+	OnDeviceStates    func(tenantID, deviceID string, ds models.DeviceStates)
+	OnSettings        func(tenantID, deviceID string, snap models.DeviceSnapshot)
+	OnErrors          func(tenantID, deviceID string, errs []models.ErrorStatus)
+	OnCompressorCycle func(tenantID, deviceID string, c models.CompressorCycle)
+	OnIdentity        func(tenantID, deviceID string, id models.DeviceIdentity)
+}
+
+// Client wraps a Paho MQTT client and routes messages to Handlers.
+type Client struct {
+	paho     paho.Client
+	h        Handlers
+	topicPfx string // e.g. "climate"
+}
+
+// Config holds MQTT broker connection parameters.
+type Config struct {
+	BrokerURL   string // e.g. "tcp://localhost:1883"
+	ClientID    string
+	Username    string
+	Password    string
+	TopicPrefix string // default "climate"
+}
+
+// New creates a connected MQTT client and subscribes to all tenant/device topics.
+func New(cfg Config, h Handlers) (*Client, error) {
+	if cfg.TopicPrefix == "" {
+		cfg.TopicPrefix = "climate"
+	}
+	c := &Client{h: h, topicPfx: cfg.TopicPrefix}
+
+	opts := paho.NewClientOptions().
+		AddBroker(cfg.BrokerURL).
+		SetClientID(cfg.ClientID).
+		SetUsername(cfg.Username).
+		SetPassword(cfg.Password).
+		SetAutoReconnect(true).
+		SetConnectRetry(true).
+		SetConnectRetryInterval(5 * time.Second).
+		SetOnConnectHandler(c.onConnect).
+		SetConnectionLostHandler(func(_ paho.Client, err error) {
+			log.Printf("mqtt: connection lost: %v", err)
+		})
+
+	c.paho = paho.NewClient(opts)
+	tok := c.paho.Connect()
+	tok.Wait()
+	if err := tok.Error(); err != nil {
+		return nil, fmt.Errorf("mqtt: connect to %s: %w", cfg.BrokerURL, err)
+	}
+	return c, nil
+}
+
+// Disconnect cleanly disconnects from the broker.
+func (c *Client) Disconnect() {
+	c.paho.Disconnect(500)
+}
+
+// PublishCommand publishes a JSON command to a specific tenant's device.
+// Topic: <prefix>/<tenantID>/<deviceID>/cmd/<command>
+func (c *Client) PublishCommand(tenantID, deviceID, command string, payload any) error {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	topic := fmt.Sprintf("%s/%s/%s/cmd/%s", c.topicPfx, tenantID, deviceID, command)
+	tok := c.paho.Publish(topic, 1, false, b)
+	tok.Wait()
+	return tok.Error()
+}
+
+// ---------------------------------------------------------------------------
+// internal
+// ---------------------------------------------------------------------------
+
+func (c *Client) onConnect(cl paho.Client) {
+	log.Println("mqtt: connected, subscribing to wildcard topics")
+	// Two single-level wildcards: one for tenant_id, one for device_id.
+	topic := fmt.Sprintf("%s/+/+/#", c.topicPfx)
+	tok := cl.Subscribe(topic, 1, c.dispatch)
+	tok.Wait()
+	if err := tok.Error(); err != nil {
+		log.Printf("mqtt: subscribe %s: %v", topic, err)
+	}
+}
+
+func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
+	parts := strings.Split(msg.Topic(), "/")
+	// expected: <prefix>/<tenant_id>/<device_id>/<subtopic>
+	if len(parts) < 4 {
+		return
+	}
+	tenantID := parts[1]
+	deviceID := parts[2]
+	subtopic := parts[3]
+	payload := msg.Payload()
+
+	switch subtopic {
+	case "sensor":
+		if c.h.OnSensorReading == nil {
+			return
+		}
+		var r models.Reading
+		if err := json.Unmarshal(payload, &r); err != nil {
+			log.Printf("mqtt: decode sensor/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnSensorReading(tenantID, deviceID, r)
+
+	case "status":
+		if c.h.OnSystemStatus == nil {
+			return
+		}
+		var s models.SystemStatus
+		if err := json.Unmarshal(payload, &s); err != nil {
+			log.Printf("mqtt: decode status/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnSystemStatus(tenantID, deviceID, s)
+
+	case "relays":
+		if c.h.OnDeviceStates == nil {
+			return
+		}
+		var ds models.DeviceStates
+		if err := json.Unmarshal(payload, &ds); err != nil {
+			log.Printf("mqtt: decode relays/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnDeviceStates(tenantID, deviceID, ds)
+
+	case "settings":
+		if c.h.OnSettings == nil {
+			return
+		}
+		var snap models.DeviceSnapshot
+		if err := json.Unmarshal(payload, &snap); err != nil {
+			log.Printf("mqtt: decode settings/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnSettings(tenantID, deviceID, snap)
+
+	case "errors":
+		if c.h.OnErrors == nil {
+			return
+		}
+		var errs []models.ErrorStatus
+		if err := json.Unmarshal(payload, &errs); err != nil {
+			log.Printf("mqtt: decode errors/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnErrors(tenantID, deviceID, errs)
+
+	case "compressor":
+		if c.h.OnCompressorCycle == nil {
+			return
+		}
+		var cyc models.CompressorCycle
+		if err := json.Unmarshal(payload, &cyc); err != nil {
+			log.Printf("mqtt: decode compressor/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		c.h.OnCompressorCycle(tenantID, deviceID, cyc)
+
+	case "identity":
+		if c.h.OnIdentity == nil {
+			return
+		}
+		var id models.DeviceIdentity
+		if err := json.Unmarshal(payload, &id); err != nil {
+			log.Printf("mqtt: decode identity/%s/%s: %v", tenantID, deviceID, err)
+			return
+		}
+		// Stamp the tenant/device IDs from the topic (authoritative source).
+		id.TenantID = tenantID
+		id.DeviceID = deviceID
+		c.h.OnIdentity(tenantID, deviceID, id)
+
+	default:
+		// unknown subtopic – silently ignore
+	}
+}
