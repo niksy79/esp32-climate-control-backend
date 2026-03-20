@@ -5,6 +5,7 @@ package datastore
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"climate-backend/internal/db"
@@ -30,11 +31,10 @@ func New(database *db.DB) *Manager {
 // enabling ESP32 devices to self-register on first contact.
 // Mirrors DataManager::addReading.
 func (m *Manager) AddReading(ctx context.Context, tenantID, deviceID string, r models.Reading) error {
-	// Ensure Timestamp is populated before reaching the DB layer so that both
-	// the in-memory managers and the stored row agree on the same value.
-	if r.Timestamp.IsZero() {
-		r.Timestamp = time.Now().UTC()
-	}
+	// Always use server time as the recorded timestamp. The ESP32 sends local
+	// time (EET UTC+2) which would be stored as if it were UTC, causing a 2-hour
+	// offset. The payload Timestamp field is kept for reference only.
+	r.Timestamp = time.Now().UTC()
 	if err := m.db.EnsureDevice(ctx, tenantID, deviceID); err != nil {
 		return err
 	}
@@ -68,6 +68,9 @@ func (m *Manager) GetLastNDays(ctx context.Context, tenantID, deviceID string, n
 	if n > 31 {
 		n = 31
 	}
-	now := time.Now()
-	return m.GetHistory(ctx, tenantID, deviceID, now.Add(-time.Duration(n)*24*time.Hour), now)
+	now := time.Now().UTC()
+	from := now.Add(-time.Duration(n) * 24 * time.Hour)
+	log.Printf("datastore: GetLastNDays tenant=%q device=%q n=%d from=%s to=%s",
+		tenantID, deviceID, n, from.Format(time.RFC3339), now.Format(time.RFC3339))
+	return m.GetHistory(ctx, tenantID, deviceID, from, now)
 }

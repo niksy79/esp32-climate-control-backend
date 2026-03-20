@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -192,13 +193,10 @@ func (d *DB) UpsertDevice(ctx context.Context, dev models.DeviceIdentity) error 
 // ---------------------------------------------------------------------------
 
 // InsertReading stores a single sensor reading.
-// If r.Timestamp is zero (e.g. the ESP32 had no RTC sync), it falls back to
-// the server's current UTC time so recorded_at is never 0001-01-01.
+// recorded_at is always set to the server's current UTC time; r.Timestamp
+// from the ESP32 payload is not used for storage (device sends local time).
 func (d *DB) InsertReading(ctx context.Context, tenantID, deviceID string, r models.Reading) error {
-	ts := r.Timestamp
-	if ts.IsZero() {
-		ts = time.Now().UTC()
-	}
+	ts := time.Now().UTC()
 	_, err := d.pool.Exec(ctx, `
 		INSERT INTO readings (tenant_id, device_id, temperature, humidity, fallback_time, recorded_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -209,6 +207,8 @@ func (d *DB) InsertReading(ctx context.Context, tenantID, deviceID string, r mod
 
 // GetReadings returns readings for a tenant/device pair within a time range.
 func (d *DB) GetReadings(ctx context.Context, tenantID, deviceID string, from, to time.Time, limit int) ([]models.Reading, error) {
+	log.Printf("db: GetReadings tenant=%q device=%q from=%s to=%s limit=%d",
+		tenantID, deviceID, from.Format(time.RFC3339), to.Format(time.RFC3339), limit)
 	rows, err := d.pool.Query(ctx, `
 		SELECT temperature, humidity, fallback_time, recorded_at
 		FROM readings
@@ -230,6 +230,7 @@ func (d *DB) GetReadings(ctx context.Context, tenantID, deviceID string, from, t
 		}
 		readings = append(readings, r)
 	}
+	log.Printf("db: GetReadings tenant=%q device=%q → %d rows", tenantID, deviceID, len(readings))
 	return readings, rows.Err()
 }
 
