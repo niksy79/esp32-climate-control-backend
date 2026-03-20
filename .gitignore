@@ -4,6 +4,7 @@ climate-backend
 
 # Environment (contains credentials)
 .env
+.env.local
 
 # Go
 *.test

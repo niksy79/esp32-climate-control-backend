@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 
 	"climate-backend/internal/api"
 	"climate-backend/internal/auth"
@@ -31,6 +32,15 @@ import (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	// -----------------------------------------------------------------
+	// .env.local — optional local overrides, never committed
+	// Loaded before os.Getenv calls so it can supply JWT_SECRET etc.
+	// Silently ignored when the file does not exist.
+	// -----------------------------------------------------------------
+	if err := godotenv.Load(".env.local"); err != nil && !os.IsNotExist(err) {
+		log.Printf("warning: could not load .env.local: %v", err)
+	}
 
 	// -----------------------------------------------------------------
 	// Config from environment
