@@ -36,22 +36,23 @@ type Services struct {
 
 // Handler holds the HTTP handler and its dependencies.
 type Handler struct {
-	svc Services
+	svc         Services
+	authHandler *auth.Handler
 }
 
 // New creates a Handler and registers routes on the provided router.
 // authHandler provides the JWT middleware and the register/login/refresh endpoints.
 func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *Handler {
-	h := &Handler{svc: svc}
+	h := &Handler{svc: svc, authHandler: authHandler}
 
 	// ── Unauthenticated routes ────────────────────────────────────────────────
 	r.HandleFunc("/api/auth/register", authHandler.Register).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/refresh", authHandler.Refresh).Methods(http.MethodPost)
 
-	// WebSocket upgrade — tenant-scoped but auth handled by token query param
-	// (browsers cannot set Authorization headers on WS connections).
-	r.HandleFunc("/ws/{tenant_id}", hub.ServeWS)
+	// WebSocket — JWT validated from ?token= query param (browsers cannot set
+	// Authorization headers on WebSocket connections).
+	r.HandleFunc("/ws/{tenant_id}", h.handleWS)
 
 	// ── JWT-protected routes ─────────────────────────────────────────────────
 	// All /api/tenants/... routes require a valid Bearer token whose tenant_id
@@ -217,6 +218,25 @@ func (h *Handler) handleListDevices(w http.ResponseWriter, r *http.Request) {
 		ids = []string{}
 	}
 	jsonResp(w, ids)
+}
+
+func (h *Handler) handleWS(w http.ResponseWriter, r *http.Request) {
+	tenantID := mux.Vars(r)["tenant_id"]
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "missing token query parameter", http.StatusUnauthorized)
+		return
+	}
+	claims, err := h.authHandler.ValidateToken(token)
+	if err != nil {
+		http.Error(w, "invalid token: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if claims.TenantID != tenantID {
+		http.Error(w, "forbidden: tenant mismatch", http.StatusForbidden)
+		return
+	}
+	h.svc.Hub.Subscribe(tenantID, w, r)
 }
 
 // ---------------------------------------------------------------------------

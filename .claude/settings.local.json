@@ -4,7 +4,10 @@
       "Bash(go mod:*)",
       "Bash(go build:*)",
       "Bash(docker compose:*)",
-      "Bash(go get:*)"
+      "Bash(go get:*)",
+      "Bash(chmod:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)"
     ]
   }
 }

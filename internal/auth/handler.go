@@ -28,6 +28,12 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 	return h.svc.Middleware(next)
 }
 
+// ValidateToken delegates to the underlying Service so callers (e.g. the
+// WebSocket handler) can validate tokens without importing auth.Service.
+func (h *Handler) ValidateToken(token string) (*Claims, error) {
+	return h.svc.ValidateToken(token)
+}
+
 // ---------------------------------------------------------------------------
 // Request / response types
 // ---------------------------------------------------------------------------

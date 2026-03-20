@@ -96,7 +96,14 @@ func main() {
 				log.Printf("datastore: add reading %s/%s: %v", tenantID, deviceID, err)
 			}
 			snap := buildSnapshot(tenantID, deviceID, r, sensorMgr, controlMgr, statusMgr, errorMgr, fanMgr)
-			hub.Broadcast(snap)
+			_ = snap
+			hub.BroadcastToTenant(tenantID, ws.LiveMessage{
+				Type:        "sensor",
+				DeviceID:    deviceID,
+				Temperature: r.Temperature,
+				Humidity:    r.Humidity,
+				Timestamp:   r.Timestamp,
+			})
 		},
 
 		OnSystemStatus: func(tenantID, deviceID string, s models.SystemStatus) {

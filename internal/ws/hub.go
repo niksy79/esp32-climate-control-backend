@@ -1,5 +1,4 @@
-// Package ws implements a WebSocket broadcast hub.
-// Mirrors the WebSocket functionality in web_server.h (WebSocketsServer).
+// Package ws implements a per-tenant WebSocket broadcast hub.
 package ws
 
 import (
@@ -7,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -17,56 +17,97 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-// client is a single WebSocket connection.
-type client struct {
-	conn *websocket.Conn
-	send chan []byte
+// LiveMessage is the wire format pushed to WebSocket subscribers when a new
+// sensor reading arrives via MQTT.
+type LiveMessage struct {
+	Type        string    `json:"type"`
+	DeviceID    string    `json:"device_id"`
+	Temperature float32   `json:"temperature"`
+	Humidity    float32   `json:"humidity"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
-// Hub maintains the set of active WebSocket clients and broadcasts messages.
+// client is a single authenticated WebSocket connection scoped to one tenant.
+type client struct {
+	tenantID string
+	conn     *websocket.Conn
+	send     chan []byte
+}
+
+// registration carries a new client and its tenant to the run loop.
+type registration struct {
+	tenantID string
+	c        *client
+}
+
+// tenantPayload carries a serialised message destined for one tenant's clients.
+type tenantPayload struct {
+	tenantID string
+	data     []byte
+}
+
+// Hub maintains per-tenant sets of WebSocket clients and fans out messages to
+// each tenant independently.
 type Hub struct {
-	mu        sync.RWMutex
-	clients   map[*client]struct{}
-	broadcast chan []byte
-	register  chan *client
+	mu      sync.RWMutex
+	tenants map[string]map[*client]struct{} // tenantID → connected clients
+
+	register   chan *registration
 	unregister chan *client
+	broadcast  chan *tenantPayload
 }
 
 // NewHub creates and starts a Hub.
 func NewHub() *Hub {
 	h := &Hub{
-		clients:    make(map[*client]struct{}),
-		broadcast:  make(chan []byte, 256),
-		register:   make(chan *client, 16),
+		tenants:    make(map[string]map[*client]struct{}),
+		register:   make(chan *registration, 16),
 		unregister: make(chan *client, 16),
+		broadcast:  make(chan *tenantPayload, 256),
 	}
 	go h.run()
 	return h
 }
 
+// run is the single goroutine that owns the tenants map.
+// All mutations go through the channels so no external lock is needed for
+// the map itself; the RWMutex protects ClientCount reads.
 func (h *Hub) run() {
 	for {
 		select {
-		case c := <-h.register:
+		case reg := <-h.register:
 			h.mu.Lock()
-			h.clients[c] = struct{}{}
+			if h.tenants[reg.tenantID] == nil {
+				h.tenants[reg.tenantID] = make(map[*client]struct{})
+			}
+			h.tenants[reg.tenantID][reg.c] = struct{}{}
 			h.mu.Unlock()
+			log.Printf("ws: client connected tenant=%s total=%d",
+				reg.tenantID, len(h.tenants[reg.tenantID]))
 
 		case c := <-h.unregister:
 			h.mu.Lock()
-			if _, ok := h.clients[c]; ok {
-				delete(h.clients, c)
-				close(c.send)
+			if clients, ok := h.tenants[c.tenantID]; ok {
+				if _, ok := clients[c]; ok {
+					delete(clients, c)
+					close(c.send)
+					if len(clients) == 0 {
+						delete(h.tenants, c.tenantID)
+					}
+					log.Printf("ws: client disconnected tenant=%s remaining=%d",
+						c.tenantID, len(h.tenants[c.tenantID]))
+				}
 			}
 			h.mu.Unlock()
 
-		case msg := <-h.broadcast:
+		case tp := <-h.broadcast:
 			h.mu.RLock()
-			for c := range h.clients {
+			for c := range h.tenants[tp.tenantID] {
 				select {
-				case c.send <- msg:
+				case c.send <- tp.data:
 				default:
-					// slow client – drop message
+					// Slow client: drop rather than block the broadcast loop.
+					log.Printf("ws: slow client for tenant=%s, dropping message", tp.tenantID)
 				}
 			}
 			h.mu.RUnlock()
@@ -74,45 +115,55 @@ func (h *Hub) run() {
 	}
 }
 
-// Broadcast serialises v as JSON and sends it to all connected clients.
-func (h *Hub) Broadcast(v any) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		log.Printf("ws: marshal broadcast: %v", err)
-		return
-	}
-	h.broadcast <- b
-}
-
-// ServeWS upgrades an HTTP connection to WebSocket and registers the client.
-func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
+// Subscribe upgrades an HTTP connection to WebSocket and registers it under
+// tenantID. Must be called after JWT validation — the hub trusts the caller.
+func (h *Hub) Subscribe(tenantID string, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("ws: upgrade: %v", err)
+		log.Printf("ws: upgrade tenant=%s: %v", tenantID, err)
 		return
 	}
-	c := &client{conn: conn, send: make(chan []byte, 64)}
-	h.register <- c
-
+	c := &client{
+		tenantID: tenantID,
+		conn:     conn,
+		send:     make(chan []byte, 64),
+	}
+	h.register <- &registration{tenantID: tenantID, c: c}
 	go c.writePump(h)
 	go c.readPump(h)
 }
 
-// ClientCount returns the number of connected WebSocket clients.
-func (h *Hub) ClientCount() int {
+// BroadcastToTenant serialises v as JSON and delivers it to all clients
+// connected under tenantID. Other tenants are not affected.
+// Non-blocking: drops the message if the internal channel is full.
+func (h *Hub) BroadcastToTenant(tenantID string, v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("ws: marshal for tenant=%s: %v", tenantID, err)
+		return
+	}
+	select {
+	case h.broadcast <- &tenantPayload{tenantID: tenantID, data: b}:
+	default:
+		log.Printf("ws: broadcast channel full for tenant=%s, dropping", tenantID)
+	}
+}
+
+// ClientCount returns the number of active connections for a tenant.
+func (h *Hub) ClientCount(tenantID string) int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return len(h.clients)
+	return len(h.tenants[tenantID])
 }
 
 // ---------------------------------------------------------------------------
-// client pumps
+// client pumps — one pair of goroutines per connection
 // ---------------------------------------------------------------------------
 
+// writePump drains the send channel and writes each message to the WebSocket.
+// It exits when the channel is closed by the unregister handler.
 func (c *client) writePump(h *Hub) {
-	defer func() {
-		c.conn.Close()
-	}()
+	defer c.conn.Close()
 	for msg := range c.send {
 		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 			return
@@ -120,6 +171,8 @@ func (c *client) writePump(h *Hub) {
 	}
 }
 
+// readPump reads and discards incoming client frames (clients are receive-only).
+// Any read error (including normal close) triggers unregistration.
 func (c *client) readPump(h *Hub) {
 	defer func() {
 		h.unregister <- c
@@ -127,8 +180,7 @@ func (c *client) readPump(h *Hub) {
 	}()
 	c.conn.SetReadLimit(512)
 	for {
-		_, _, err := c.conn.ReadMessage()
-		if err != nil {
+		if _, _, err := c.conn.ReadMessage(); err != nil {
 			return
 		}
 	}
