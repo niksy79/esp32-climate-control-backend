@@ -336,6 +336,27 @@ type DeviceIdentity struct {
 }
 
 // ---------------------------------------------------------------------------
+// Alerts
+// ---------------------------------------------------------------------------
+
+// AlertRule defines a condition that triggers a notification channel when a
+// sensor metric breaches a threshold on a specific tenant/device.
+type AlertRule struct {
+	ID              string     `json:"id"`
+	TenantID        string     `json:"tenant_id"`
+	DeviceID        string     `json:"device_id"`
+	Metric          string     `json:"metric"`           // "temperature" | "humidity"
+	Operator        string     `json:"operator"`         // "gt" | "lt" | "gte" | "lte"
+	Threshold       float64    `json:"threshold"`
+	Channel         string     `json:"channel"`          // "email" | "push"
+	Recipient       string     `json:"recipient"`        // email address or push token
+	Enabled         bool       `json:"enabled"`
+	CooldownMinutes int        `json:"cooldown_minutes"` // default 15
+	LastFired       *time.Time `json:"last_fired,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+// ---------------------------------------------------------------------------
 // Aggregated device snapshot (used for WebSocket broadcasts)
 // ---------------------------------------------------------------------------
 

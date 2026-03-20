@@ -4,12 +4,14 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
 
+	"climate-backend/internal/alerts"
 	"climate-backend/internal/auth"
 	"climate-backend/internal/control"
 	"climate-backend/internal/datastore"
@@ -32,6 +34,7 @@ type Services struct {
 	Datastore *datastore.Manager
 	Storage   *storage.Manager
 	Hub       *ws.Hub
+	Alerts    *alerts.Engine
 }
 
 // Handler holds the HTTP handler and its dependencies.
@@ -70,6 +73,12 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleGetSettings).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
 	protected.HandleFunc(base+"/{device_id}/mode", h.handleSwitchMode).Methods(http.MethodPost)
+
+	alertBase := base + "/{device_id}/alert-rules"
+	protected.HandleFunc(alertBase, h.handleListAlertRules).Methods(http.MethodGet)
+	protected.HandleFunc(alertBase, h.handleCreateAlertRule).Methods(http.MethodPost)
+	protected.HandleFunc(alertBase+"/{rule_id}", h.handleUpdateAlertRule).Methods(http.MethodPut)
+	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
 
 	return h
 }
@@ -220,6 +229,132 @@ func (h *Handler) handleListDevices(w http.ResponseWriter, r *http.Request) {
 	jsonResp(w, ids)
 }
 
+// ---------------------------------------------------------------------------
+// alert-rule handlers (admin only for all four methods)
+// ---------------------------------------------------------------------------
+
+func (h *Handler) handleListAlertRules(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	tenantID, deviceID := pathIDs(r)
+	rules, err := h.svc.Alerts.ListRules(r.Context(), tenantID, deviceID)
+	if err != nil {
+		http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if rules == nil {
+		rules = []models.AlertRule{}
+	}
+	jsonResp(w, rules)
+}
+
+func (h *Handler) handleCreateAlertRule(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	var body struct {
+		Metric          string  `json:"metric"`
+		Operator        string  `json:"operator"`
+		Threshold       float64 `json:"threshold"`
+		Channel         string  `json:"channel"`
+		Recipient       string  `json:"recipient"`
+		Enabled         bool    `json:"enabled"`
+		CooldownMinutes int     `json:"cooldown_minutes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := validateAlertRule(body.Metric, body.Operator, body.Channel); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cooldown := body.CooldownMinutes
+	if cooldown <= 0 {
+		cooldown = 15
+	}
+	rule := models.AlertRule{
+		TenantID:        tenantID,
+		DeviceID:        deviceID,
+		Metric:          body.Metric,
+		Operator:        body.Operator,
+		Threshold:       body.Threshold,
+		Channel:         body.Channel,
+		Recipient:       body.Recipient,
+		Enabled:         body.Enabled,
+		CooldownMinutes: cooldown,
+	}
+	created, err := h.svc.Alerts.CreateRule(r.Context(), rule)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonResp(w, created)
+}
+
+func (h *Handler) handleUpdateAlertRule(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	ruleID := mux.Vars(r)["rule_id"]
+	var body struct {
+		Metric          string  `json:"metric"`
+		Operator        string  `json:"operator"`
+		Threshold       float64 `json:"threshold"`
+		Channel         string  `json:"channel"`
+		Recipient       string  `json:"recipient"`
+		Enabled         bool    `json:"enabled"`
+		CooldownMinutes int     `json:"cooldown_minutes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := validateAlertRule(body.Metric, body.Operator, body.Channel); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cooldown := body.CooldownMinutes
+	if cooldown <= 0 {
+		cooldown = 15
+	}
+	rule := models.AlertRule{
+		ID:              ruleID,
+		TenantID:        tenantID,
+		DeviceID:        deviceID,
+		Metric:          body.Metric,
+		Operator:        body.Operator,
+		Threshold:       body.Threshold,
+		Channel:         body.Channel,
+		Recipient:       body.Recipient,
+		Enabled:         body.Enabled,
+		CooldownMinutes: cooldown,
+	}
+	updated, err := h.svc.Alerts.UpdateRule(r.Context(), rule)
+	if err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "rule not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonResp(w, updated)
+}
+
+func (h *Handler) handleDeleteAlertRule(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	ruleID := mux.Vars(r)["rule_id"]
+	err := h.svc.Alerts.DeleteRule(r.Context(), tenantID, deviceID, ruleID)
+	if err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "rule not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) handleWS(w http.ResponseWriter, r *http.Request) {
 	tenantID := mux.Vars(r)["tenant_id"]
 	token := r.URL.Query().Get("token")
@@ -242,6 +377,34 @@ func (h *Handler) handleWS(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+func (h *Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok || claims.Role != models.RoleAdmin {
+		http.Error(w, "forbidden: admin role required", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func validateAlertRule(metric, operator, channel string) error {
+	switch metric {
+	case "temperature", "humidity":
+	default:
+		return fmt.Errorf("metric must be 'temperature' or 'humidity'")
+	}
+	switch operator {
+	case "gt", "lt", "gte", "lte":
+	default:
+		return fmt.Errorf("operator must be 'gt', 'lt', 'gte', or 'lte'")
+	}
+	switch channel {
+	case "email", "push":
+	default:
+		return fmt.Errorf("channel must be 'email' or 'push'")
+	}
+	return nil
+}
 
 func pathIDs(r *http.Request) (tenantID, deviceID string) {
 	v := mux.Vars(r)

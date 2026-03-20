@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
+	"strconv"
+
+	"climate-backend/internal/alerts"
 	"climate-backend/internal/api"
 	"climate-backend/internal/auth"
 	"climate-backend/internal/control"
@@ -70,6 +73,21 @@ func main() {
 	authHandler := auth.NewHandler(authSvc, database)
 
 	// -----------------------------------------------------------------
+	// Alert engine
+	// -----------------------------------------------------------------
+	smtpPort, _ := strconv.Atoi(envOr("SMTP_PORT", "587"))
+	alertEngine := alerts.New(database, alerts.SMTPConfig{
+		Host: envOr("SMTP_HOST", ""),
+		Port: smtpPort,
+		User: envOr("SMTP_USER", ""),
+		Pass: envOr("SMTP_PASS", ""),
+		From: envOr("SMTP_FROM", ""),
+	})
+	if err := alertEngine.LoadAll(ctx); err != nil {
+		log.Printf("alerts: %v", err)
+	}
+
+	// -----------------------------------------------------------------
 	// Managers
 	// -----------------------------------------------------------------
 	sensorMgr := sensor.New()
@@ -95,6 +113,7 @@ func main() {
 			if err := datastoreMgr.AddReading(ctx, tenantID, deviceID, r); err != nil {
 				log.Printf("datastore: add reading %s/%s: %v", tenantID, deviceID, err)
 			}
+			alertEngine.Evaluate(tenantID, deviceID, r)
 			snap := buildSnapshot(tenantID, deviceID, r, sensorMgr, controlMgr, statusMgr, errorMgr, fanMgr)
 			_ = snap
 			hub.BroadcastToTenant(tenantID, ws.LiveMessage{
@@ -171,6 +190,7 @@ func main() {
 		Datastore: datastoreMgr,
 		Storage:   storageMgr,
 		Hub:       hub,
+		Alerts:    alertEngine,
 	}, hub, authHandler)
 
 	srv := &http.Server{

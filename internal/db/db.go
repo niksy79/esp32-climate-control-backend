@@ -135,6 +135,22 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (tenant_id, email)
 );
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id        TEXT        NOT NULL,
+    device_id        TEXT        NOT NULL,
+    metric           TEXT        NOT NULL,
+    operator         TEXT        NOT NULL,
+    threshold        REAL        NOT NULL,
+    channel          TEXT        NOT NULL DEFAULT 'email',
+    recipient        TEXT        NOT NULL DEFAULT '',
+    enabled          BOOLEAN     NOT NULL DEFAULT TRUE,
+    cooldown_minutes INTEGER     NOT NULL DEFAULT 15,
+    last_fired       TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, device_id)
+);
 `
 
 // ---------------------------------------------------------------------------
@@ -389,7 +405,7 @@ func (d *DB) GetUserByEmail(ctx context.Context, tenantID, email string) (models
 	return u, nil
 }
 
-// ErrNoRows is re-exported so callers can check for missing users without
+// ErrNoRows is re-exported so callers can check for missing rows without
 // importing pgx directly.
 var ErrNoRows = pgx.ErrNoRows
 
@@ -421,4 +437,126 @@ func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]string, erro
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// Alert rules
+// ---------------------------------------------------------------------------
+
+const alertRuleCols = `id, tenant_id, device_id, metric, operator, threshold,
+	channel, recipient, enabled, cooldown_minutes, last_fired, created_at`
+
+func scanAlertRule(row interface {
+	Scan(...any) error
+}) (models.AlertRule, error) {
+	var r models.AlertRule
+	err := row.Scan(
+		&r.ID, &r.TenantID, &r.DeviceID, &r.Metric, &r.Operator, &r.Threshold,
+		&r.Channel, &r.Recipient, &r.Enabled, &r.CooldownMinutes, &r.LastFired, &r.CreatedAt,
+	)
+	return r, err
+}
+
+// CreateAlertRule inserts a new alert rule and returns the persisted record.
+func (d *DB) CreateAlertRule(ctx context.Context, rule models.AlertRule) (models.AlertRule, error) {
+	return scanAlertRule(d.pool.QueryRow(ctx, `
+		INSERT INTO alert_rules
+			(tenant_id, device_id, metric, operator, threshold, channel, recipient, enabled, cooldown_minutes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING `+alertRuleCols,
+		rule.TenantID, rule.DeviceID, rule.Metric, rule.Operator, rule.Threshold,
+		rule.Channel, rule.Recipient, rule.Enabled, rule.CooldownMinutes,
+	))
+}
+
+// ListAlertRules returns all alert rules for a tenant/device pair.
+func (d *DB) ListAlertRules(ctx context.Context, tenantID, deviceID string) ([]models.AlertRule, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT `+alertRuleCols+`
+		FROM alert_rules
+		WHERE tenant_id = $1 AND device_id = $2
+		ORDER BY created_at ASC`,
+		tenantID, deviceID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rules []models.AlertRule
+	for rows.Next() {
+		r, err := scanAlertRule(rows)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, r)
+	}
+	return rules, rows.Err()
+}
+
+// UpdateAlertRule replaces the mutable fields of an existing rule.
+// Returns ErrNoRows if no rule with the given ID exists for the tenant/device.
+func (d *DB) UpdateAlertRule(ctx context.Context, rule models.AlertRule) (models.AlertRule, error) {
+	r, err := scanAlertRule(d.pool.QueryRow(ctx, `
+		UPDATE alert_rules SET
+			metric           = $1,
+			operator         = $2,
+			threshold        = $3,
+			channel          = $4,
+			recipient        = $5,
+			enabled          = $6,
+			cooldown_minutes = $7
+		WHERE id = $8 AND tenant_id = $9 AND device_id = $10
+		RETURNING `+alertRuleCols,
+		rule.Metric, rule.Operator, rule.Threshold, rule.Channel, rule.Recipient,
+		rule.Enabled, rule.CooldownMinutes, rule.ID, rule.TenantID, rule.DeviceID,
+	))
+	if err == pgx.ErrNoRows {
+		return r, ErrNoRows
+	}
+	return r, err
+}
+
+// DeleteAlertRule removes an alert rule.
+// Returns ErrNoRows if no matching rule was found.
+func (d *DB) DeleteAlertRule(ctx context.Context, tenantID, deviceID, ruleID string) error {
+	tag, err := d.pool.Exec(ctx, `
+		DELETE FROM alert_rules WHERE id = $1 AND tenant_id = $2 AND device_id = $3`,
+		ruleID, tenantID, deviceID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRows
+	}
+	return nil
+}
+
+// UpdateAlertRuleLastFired stamps the last_fired timestamp on a rule.
+func (d *DB) UpdateAlertRuleLastFired(ctx context.Context, ruleID string, t time.Time) error {
+	_, err := d.pool.Exec(ctx, `
+		UPDATE alert_rules SET last_fired = $1 WHERE id = $2`, t, ruleID)
+	return err
+}
+
+// LoadAllAlertRules returns every alert rule across all tenants and devices.
+// Used at startup to populate the in-memory engine cache.
+func (d *DB) LoadAllAlertRules(ctx context.Context) ([]models.AlertRule, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT `+alertRuleCols+`
+		FROM alert_rules
+		ORDER BY tenant_id, device_id, created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rules []models.AlertRule
+	for rows.Next() {
+		r, err := scanAlertRule(rows)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, r)
+	}
+	return rules, rows.Err()
 }
