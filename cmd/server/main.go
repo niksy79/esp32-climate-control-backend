@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"climate-backend/internal/api"
+	"climate-backend/internal/auth"
 	"climate-backend/internal/control"
 	"climate-backend/internal/datastore"
 	"climate-backend/internal/db"
@@ -37,6 +38,7 @@ func main() {
 	dbDSN := envOr("DATABASE_URL", "postgres://climate:climate@localhost:5432/climate?sslmode=disable")
 	mqttURL := envOr("MQTT_URL", "tcp://localhost:1883")
 	listenAddr := envOr("LISTEN_ADDR", ":8080")
+	jwtSecret := envOr("JWT_SECRET", "")
 
 	// -----------------------------------------------------------------
 	// Database
@@ -47,6 +49,15 @@ func main() {
 	}
 	defer database.Close()
 	log.Printf("database connected")
+
+	// -----------------------------------------------------------------
+	// Auth
+	// -----------------------------------------------------------------
+	authSvc, err := auth.NewService(jwtSecret)
+	if err != nil {
+		log.Fatalf("auth: %v", err)
+	}
+	authHandler := auth.NewHandler(authSvc, database)
 
 	// -----------------------------------------------------------------
 	// Managers
@@ -135,6 +146,7 @@ func main() {
 	// -----------------------------------------------------------------
 	r := mux.NewRouter()
 	api.New(r, api.Services{
+		DB:        database,
 		Sensor:    sensorMgr,
 		Control:   controlMgr,
 		Status:    statusMgr,
@@ -142,7 +154,7 @@ func main() {
 		Datastore: datastoreMgr,
 		Storage:   storageMgr,
 		Hub:       hub,
-	}, hub)
+	}, hub, authHandler)
 
 	srv := &http.Server{
 		Addr:         listenAddr,

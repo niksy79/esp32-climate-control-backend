@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"climate-backend/internal/models"
@@ -123,6 +124,16 @@ CREATE TABLE IF NOT EXISTS device_settings (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (tenant_id, device_id),
     FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, device_id)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id     TEXT        NOT NULL,
+    email         TEXT        NOT NULL,
+    password_hash TEXT        NOT NULL,
+    role          TEXT        NOT NULL DEFAULT 'user',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, email)
 );
 `
 
@@ -335,4 +346,79 @@ func (d *DB) UpsertSettings(ctx context.Context, tenantID, deviceID string,
 		mode.String(), int(activeMode),
 	)
 	return err
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+// CreateUser inserts a new user and returns the created record.
+// Returns an error (with a duplicate key message) if the email already exists
+// within the tenant.
+func (d *DB) CreateUser(ctx context.Context, tenantID, email, passwordHash string, role models.Role) (models.User, error) {
+	var u models.User
+	var roleStr string
+	err := d.pool.QueryRow(ctx, `
+		INSERT INTO users (tenant_id, email, password_hash, role)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, tenant_id, email, password_hash, role, created_at`,
+		tenantID, email, passwordHash, string(role),
+	).Scan(&u.ID, &u.TenantID, &u.Email, &u.PasswordHash, &roleStr, &u.CreatedAt)
+	if err != nil {
+		return u, err
+	}
+	u.Role = models.Role(roleStr)
+	return u, nil
+}
+
+// GetUserByEmail returns a user by tenant + email.
+// Returns pgx.ErrNoRows if no matching user exists.
+func (d *DB) GetUserByEmail(ctx context.Context, tenantID, email string) (models.User, error) {
+	var u models.User
+	var roleStr string
+	err := d.pool.QueryRow(ctx, `
+		SELECT id, tenant_id, email, password_hash, role, created_at
+		FROM users
+		WHERE tenant_id = $1 AND email = $2`,
+		tenantID, email,
+	).Scan(&u.ID, &u.TenantID, &u.Email, &u.PasswordHash, &roleStr, &u.CreatedAt)
+	if err != nil {
+		return u, err
+	}
+	u.Role = models.Role(roleStr)
+	return u, nil
+}
+
+// ErrNoRows is re-exported so callers can check for missing users without
+// importing pgx directly.
+var ErrNoRows = pgx.ErrNoRows
+
+// ---------------------------------------------------------------------------
+// Device listing
+// ---------------------------------------------------------------------------
+
+// ListDeviceIDs returns all device_ids belonging to a tenant, ordered
+// by the time they were last seen.
+func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]string, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT device_id
+		FROM devices
+		WHERE tenant_id = $1
+		ORDER BY last_seen DESC`,
+		tenantID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

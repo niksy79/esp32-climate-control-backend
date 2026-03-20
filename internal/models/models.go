@@ -5,6 +5,30 @@ package models
 import "time"
 
 // ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+// Role controls what a user is allowed to do via the REST API.
+// ADMIN can read and write; USER is read-only.
+type Role string
+
+const (
+	RoleAdmin Role = "admin"
+	RoleUser  Role = "user"
+)
+
+// User is a human operator who accesses the REST API.
+// Passwords are stored as bcrypt hashes; the field is excluded from JSON output.
+type User struct {
+	ID           string    `json:"id"`
+	TenantID     string    `json:"tenant_id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"-"`
+	Role         Role      `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// ---------------------------------------------------------------------------
 // Sensor (sensor_manager.h)
 // ---------------------------------------------------------------------------
 

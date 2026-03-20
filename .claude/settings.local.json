@@ -3,7 +3,8 @@
     "allow": [
       "Bash(go mod:*)",
       "Bash(go build:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(go get:*)"
     ]
   }
 }

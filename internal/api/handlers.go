@@ -10,8 +10,10 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"climate-backend/internal/auth"
 	"climate-backend/internal/control"
 	"climate-backend/internal/datastore"
+	"climate-backend/internal/db"
 	"climate-backend/internal/errmanager"
 	"climate-backend/internal/models"
 	"climate-backend/internal/sensor"
@@ -22,6 +24,7 @@ import (
 
 // Services bundles all manager dependencies.
 type Services struct {
+	DB        *db.DB
 	Sensor    *sensor.Manager
 	Control   *control.Manager
 	Status    *status.Manager
@@ -37,25 +40,35 @@ type Handler struct {
 }
 
 // New creates a Handler and registers routes on the provided router.
-func New(r *mux.Router, svc Services, hub *ws.Hub) *Handler {
+// authHandler provides the JWT middleware and the register/login/refresh endpoints.
+func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *Handler {
 	h := &Handler{svc: svc}
 
-	// WebSocket upgrade (tenant-scoped)
+	// ── Unauthenticated routes ────────────────────────────────────────────────
+	r.HandleFunc("/api/auth/register", authHandler.Register).Methods(http.MethodPost)
+	r.HandleFunc("/api/auth/login", authHandler.Login).Methods(http.MethodPost)
+	r.HandleFunc("/api/auth/refresh", authHandler.Refresh).Methods(http.MethodPost)
+
+	// WebSocket upgrade — tenant-scoped but auth handled by token query param
+	// (browsers cannot set Authorization headers on WS connections).
 	r.HandleFunc("/ws/{tenant_id}", hub.ServeWS)
 
-	base := "/api/tenants/{tenant_id}/devices"
+	// ── JWT-protected routes ─────────────────────────────────────────────────
+	// All /api/tenants/... routes require a valid Bearer token whose tenant_id
+	// claim matches the {tenant_id} path variable. POST routes additionally
+	// require RoleAdmin.
+	protected := r.PathPrefix("/api/tenants").Subrouter()
+	protected.Use(authHandler.Middleware)
 
-	// Device list for a tenant
-	r.HandleFunc(base, h.handleListDevices).Methods(http.MethodGet)
-
-	// Per-device routes
-	r.HandleFunc(base+"/{device_id}/current", h.handleCurrent).Methods(http.MethodGet)
-	r.HandleFunc(base+"/{device_id}/status", h.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(base+"/{device_id}/history", h.handleHistory).Methods(http.MethodGet)
-	r.HandleFunc(base+"/{device_id}/errors", h.handleErrors).Methods(http.MethodGet)
-	r.HandleFunc(base+"/{device_id}/settings", h.handleGetSettings).Methods(http.MethodGet)
-	r.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
-	r.HandleFunc(base+"/{device_id}/mode", h.handleSwitchMode).Methods(http.MethodPost)
+	base := "/{tenant_id}/devices"
+	protected.HandleFunc(base, h.handleListDevices).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/current", h.handleCurrent).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/status", h.handleStatus).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/history", h.handleHistory).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/errors", h.handleErrors).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/settings", h.handleGetSettings).Methods(http.MethodGet)
+	protected.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
+	protected.HandleFunc(base+"/{device_id}/mode", h.handleSwitchMode).Methods(http.MethodPost)
 
 	return h
 }
@@ -195,12 +208,10 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleListDevices(w http.ResponseWriter, r *http.Request) {
 	tenantID := mux.Vars(r)["tenant_id"]
-	pairs := h.svc.Status.AllDeviceKeys()
-	var ids []string
-	for _, p := range pairs {
-		if p[0] == tenantID {
-			ids = append(ids, p[1])
-		}
+	ids, err := h.svc.DB.ListDeviceIDs(r.Context(), tenantID)
+	if err != nil {
+		http.Error(w, "failed to list devices: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 	if ids == nil {
 		ids = []string{}
