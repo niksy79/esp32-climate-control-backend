@@ -709,6 +709,33 @@ Device auto-registers on first publish. No prior setup needed.
 
 ---
 
+## Production Deployment
+
+### Infrastructure
+
+| Component | Detail |
+|---|---|
+| Host | Proxmox LXC container 104 (`docker-services`), Debian |
+| Stack | Docker Compose: `mosquitto` + `timescaledb` + `climate-backend` |
+| Internal port | `8081` (mapped from container's `8080`) |
+| Public URL | `https://climate.gotocloud.xyz` |
+| Reverse proxy | Nginx Proxy Manager — proxies `climate.gotocloud.xyz` → `localhost:8081` |
+| Tunnel | Cloudflare Tunnel — routes public HTTPS to Nginx Proxy Manager on the LXC host |
+
+### Production vs local differences
+
+| Setting | Local (`make dev`) | Production (docker-compose) |
+|---|---|---|
+| `DATABASE_URL` host | `localhost` | `timescaledb` (Docker service name) |
+| `MQTT_URL` host | `192.168.68.117` (hardcoded LAN IP) | `mosquitto` (Docker service name) |
+| `LISTEN_ADDR` | `:8080` | `:8080` (mapped to `8081` on host) |
+| `JWT_SECRET` | `dev-secret` | Strong secret via `.env` |
+
+The Cloudflare Tunnel service is defined in `docker-compose.yml` but commented out —
+the tunnel token is injected separately on the LXC host and runs outside Compose.
+
+---
+
 ## Environment Variables
 
 | Variable | Default in `make dev` | Description |
