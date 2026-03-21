@@ -528,6 +528,17 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
 }
 
 // ── Режими ────────────────────────────────────────────────
+const MODE_STRING_TO_INT = {
+  normal:              0,
+  heating:             1,
+  beer_cooling:        2,
+  room_temp:           3,
+  product_meat_fish:   10,
+  product_dairy:       11,
+  product_ready_food:  12,
+  product_vegetables:  13,
+}
+
 const MODES = [
   {
     id: 'basic',
@@ -660,7 +671,7 @@ export default function DeviceDetail() {
       if (results[1].status === 'fulfilled') {
         const s = results[1].value.data
         setStatus(s)
-        if (s?.active_mode != null) setActiveMode(s.active_mode)
+        if (s?.active_mode != null) setActiveMode(MODE_STRING_TO_INT[s.active_mode] ?? 0)
       }
       if (results[2].status === 'fulfilled') setHistory(results[2].value.data?.readings ?? [])
       if (results[3].status === 'fulfilled') setSettings(results[3].value.data)
@@ -685,7 +696,7 @@ export default function DeviceDetail() {
       if (statusRes.status === 'fulfilled') {
         const s = statusRes.value.data
         setStatus(s)
-        if (s?.active_mode != null) setActiveMode(s.active_mode)
+        if (s?.active_mode != null) setActiveMode(MODE_STRING_TO_INT[s.active_mode] ?? 0)
       }
     } catch (err) {
       console.error('DeviceDetail pollStatus:', err)
