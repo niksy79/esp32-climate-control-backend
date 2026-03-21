@@ -47,6 +47,18 @@ services:
       timescaledb:
         condition: service_healthy
 
+  # ── React web app ───────────────────────────────────────────────────────────
+  climate-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: climate-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - climate-backend
+
   # ── Cloudflare Tunnel ───────────────────────────────────────────────────────
   # Exposes the backend and/or MQTT WebSocket port to the internet without
   # opening firewall ports.  Uncomment and replace TUNNEL_TOKEN with the token

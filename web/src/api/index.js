@@ -27,6 +27,9 @@ export const getSettings = (tenantId, deviceId) =>
 export const saveSettings = (tenantId, deviceId, data) =>
   client.post(`/api/tenants/${tenantId}/devices/${deviceId}/settings`, data)
 
+export const switchMode = (tenantId, deviceId, mode) =>
+  client.post(`/api/tenants/${tenantId}/devices/${deviceId}/mode`, { mode })
+
 // Alert rules
 export const listAlertRules = (tenantId, deviceId) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/alert-rules`)

@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import {
   getCurrentReading, getDeviceStatus, getHistory,
-  getSettings, saveSettings, listAlertRules, createAlertRule, deleteAlertRule,
+  getSettings, saveSettings, switchMode, listAlertRules, createAlertRule, deleteAlertRule,
 } from '../api/index'
 import {
   formatTemperature, formatHumidity, formatTimestamp,
@@ -32,9 +32,10 @@ function hasActiveError(errors) {
 // ── Tabs ──────────────────────────────────────────────────
 function Tabs({ active, onChange }) {
   const tabs = [
-    { key: 'history', label: 'История' },
+    { key: 'history',  label: 'История' },
     { key: 'settings', label: 'Настройки' },
-    { key: 'alerts', label: 'Алерти' },
+    { key: 'alerts',   label: 'Алерти' },
+    { key: 'modes',    label: 'Режими' },
   ]
   return (
     <div className="dd-tabs">
@@ -502,6 +503,106 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
   )
 }
 
+// ── Режими ────────────────────────────────────────────────
+const MODES = [
+  {
+    id: 'basic',
+    label: 'ОСНОВНИ РЕЖИМИ',
+    modes: [
+      { value: 0,  name: 'Режим сушилня',       desc: 'Стандартно охлаждане, когато външната температура е по-висока от зададената', fixed: null },
+      { value: 1,  name: 'Режим на нагряване',  desc: 'Приоритетно нагряване за поддържане на температура над външната',            fixed: null },
+      { value: 3,  name: 'Стайна температура',  desc: 'Поддържа комфортна стайна температура с нагряване и охлаждане',              fixed: '21°C ± 1°C' },
+      { value: 2,  name: 'Охлаждане на бира',   desc: 'Прецизно поддържане на ниска температура за напитки',                        fixed: '7.5°C ± 1°C' },
+    ],
+  },
+  {
+    id: 'product',
+    label: 'ПРОДУКТОВИ РЕЖИМИ',
+    modes: [
+      { value: 10, name: 'Месо и риба',          desc: 'Оптимална температура за съхранение на свежо месо и риба',               fixed: '1.5°C ± 1°C' },
+      { value: 11, name: 'Млечни продукти',      desc: 'Подходящ за мляко, сирене, кисело мляко и млечни продукти',              fixed: '3.5°C ± 1°C' },
+      { value: 12, name: 'Готови храни',         desc: 'За приготвени и готови за консумация храни',                              fixed: '5.5°C ± 1°C' },
+      { value: 13, name: 'Плодове и зеленчуци', desc: 'Запазва свежестта на плодове и зеленчуци по-дълго време',                 fixed: '9°C ± 1°C' },
+    ],
+  },
+]
+
+const ALL_MODES_FLAT = MODES.flatMap((g) => g.modes)
+
+function Toast({ msg }) {
+  if (!msg) return null
+  return (
+    <div className={`dd-toast ${msg.type === 'ok' ? 'dd-toast-ok' : 'dd-toast-err'}`}>
+      {msg.text}
+    </div>
+  )
+}
+
+function TabModes({ activeMode, setActiveMode, tenantId, deviceId }) {
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
+
+  function showToast(type, text) {
+    setToast({ type, text })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
+  }
+
+  async function handleSelect(mode) {
+    if (mode.value === activeMode) return
+    if (!window.confirm(`Превключване към ${mode.name}?`)) return
+    try {
+      await switchMode(tenantId, deviceId, mode.value)
+      setActiveMode(mode.value)
+      showToast('ok', 'Режимът е променен')
+    } catch {
+      showToast('err', 'Грешка при смяна на режима')
+    }
+  }
+
+  const activeModeObj = ALL_MODES_FLAT.find((m) => m.value === activeMode)
+
+  return (
+    <div className="dd-tab-content">
+      {activeModeObj && (
+        <p className="dd-mode-current">
+          Текущ режим: <strong>{activeModeObj.name}</strong>
+        </p>
+      )}
+
+      {MODES.map((group) => (
+        <div key={group.id} className="dd-mode-group">
+          <p className="dd-mode-group-label">{group.label}</p>
+          <div className="dd-mode-grid">
+            {group.modes.map((mode) => {
+              const isActive = mode.value === activeMode
+              return (
+                <div
+                  key={mode.value}
+                  className={`dd-mode-card${isActive ? ' dd-mode-card-active' : ''}`}
+                  onClick={() => handleSelect(mode)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSelect(mode)}
+                >
+                  {isActive && <span className="dd-mode-check">✓</span>}
+                  <p className="dd-mode-name">{mode.name}</p>
+                  <p className="dd-mode-desc">{mode.desc}</p>
+                  <p className="dd-mode-fixed">
+                    {mode.fixed ? `Фиксирано: ${mode.fixed}` : 'Използва зададените настройки'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      <Toast msg={toast} />
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────
 export default function DeviceDetail() {
   const { token } = useAuth()
@@ -516,6 +617,7 @@ export default function DeviceDetail() {
   const [history, setHistory] = useState([])
   const [settings, setSettings] = useState(null)
   const [rules, setRules] = useState([])
+  const [activeMode, setActiveMode] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [activeTab, setActiveTab] = useState('history')
@@ -531,7 +633,11 @@ export default function DeviceDetail() {
         listAlertRules(tenantId, deviceId),
       ])
       if (results[0].status === 'fulfilled') setCurrent(results[0].value.data)
-      if (results[1].status === 'fulfilled') setStatus(results[1].value.data)
+      if (results[1].status === 'fulfilled') {
+        const s = results[1].value.data
+        setStatus(s)
+        if (s?.active_mode != null) setActiveMode(s.active_mode)
+      }
       if (results[2].status === 'fulfilled') setHistory(results[2].value.data?.readings ?? [])
       if (results[3].status === 'fulfilled') setSettings(results[3].value.data)
       if (results[4].status === 'fulfilled') setRules(results[4].value.data ?? [])
@@ -544,9 +650,32 @@ export default function DeviceDetail() {
     }
   }, [tenantId, deviceId])
 
+  const pollStatus = useCallback(async () => {
+    if (!tenantId || !deviceId) return
+    try {
+      const [currentRes, statusRes] = await Promise.allSettled([
+        getCurrentReading(tenantId, deviceId),
+        getDeviceStatus(tenantId, deviceId),
+      ])
+      if (currentRes.status === 'fulfilled') setCurrent(currentRes.value.data)
+      if (statusRes.status === 'fulfilled') {
+        const s = statusRes.value.data
+        setStatus(s)
+        if (s?.active_mode != null) setActiveMode(s.active_mode)
+      }
+    } catch (err) {
+      console.error('DeviceDetail pollStatus:', err)
+    }
+  }, [tenantId, deviceId])
+
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
+
+  useEffect(() => {
+    const id = setInterval(pollStatus, 30_000)
+    return () => clearInterval(id)
+  }, [pollStatus])
 
   const alertActive = hasActiveError(status?.errors ?? [])
   const deviceName = status?.device_name || deviceId
@@ -589,6 +718,9 @@ export default function DeviceDetail() {
       )}
       {activeTab === 'alerts' && (
         <TabAlerts rules={rules} setRules={setRules} tenantId={tenantId} deviceId={deviceId} />
+      )}
+      {activeTab === 'modes' && (
+        <TabModes activeMode={activeMode} setActiveMode={setActiveMode} tenantId={tenantId} deviceId={deviceId} />
       )}
     </div>
   )

@@ -509,6 +509,138 @@
   border: 1px solid #2a2d3a;
 }
 
+/* ── Режими tab ───────────────────────────────────────────── */
+.dd-mode-current {
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  margin: 0 0 24px;
+}
+
+.dd-mode-current strong {
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+.dd-mode-group {
+  margin-bottom: 28px;
+}
+
+.dd-mode-group-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.dd-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  .dd-mode-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .dd-mode-grid { grid-template-columns: 1fr; }
+}
+
+.dd-mode-card {
+  position: relative;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.dd-mode-card:hover {
+  border-color: #3d4155;
+}
+
+.dd-mode-card:focus-visible {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.dd-mode-card-active {
+  border: 2px solid #22c55e;
+  background: #1a2320;
+  cursor: default;
+}
+
+.dd-mode-card-active:hover {
+  border-color: #22c55e;
+}
+
+.dd-mode-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dd-mode-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+  padding-right: 24px; /* room for checkmark */
+}
+
+.dd-mode-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dd-mode-fixed {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3b82f6;
+  margin: 0;
+}
+
+/* ── Toast ────────────────────────────────────────────────── */
+.dd-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  z-index: 100;
+  pointer-events: none;
+  animation: dd-toast-in 0.2s ease;
+}
+
+.dd-toast-ok  { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+.dd-toast-err { background: #450a0a; color: #f87171; border: 1px solid #ef4444; }
+
+@keyframes dd-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .dd-header,
