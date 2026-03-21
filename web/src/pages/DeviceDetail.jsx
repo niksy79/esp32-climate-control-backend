@@ -192,8 +192,8 @@ function TabSettings({ settings, tenantId, deviceId }) {
       hum_offset:        hum.offset         ?? 0,
       fan_speed:         fan.speed          ?? 50,
       mixing_enabled:    fan.mixing_enabled ?? true,
-      mixing_interval:   Math.round((fan.mixing_interval ?? 3600) / 60),
-      mixing_duration:   fan.mixing_duration ?? 300,
+      mixing_interval:   Math.round((fan.mixing_interval_s ?? 3600) / 60),
+      mixing_duration:   fan.mixing_duration_s ?? 300,
     }
   }, [settings])
 
