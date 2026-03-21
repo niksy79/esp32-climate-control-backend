@@ -16,9 +16,9 @@ export function useWebSocket(tenantId, token) {
     const ws = new WebSocket(url)
     wsRef.current = ws
 
-    ws.onopen = () => setReadyState(WebSocket.OPEN)
-    ws.onclose = () => setReadyState(WebSocket.CLOSED)
-    ws.onerror = () => setReadyState(WebSocket.CLOSED)
+    ws.onopen  = () => setReadyState(WebSocket.OPEN)
+    ws.onclose = () => { if (wsRef.current === ws) setReadyState(WebSocket.CLOSED) }
+    ws.onerror = () => { if (wsRef.current === ws) setReadyState(WebSocket.CLOSED) }
     ws.onmessage = (event) => {
       try {
         setLastMessage(JSON.parse(event.data))

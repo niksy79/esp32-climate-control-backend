@@ -7,7 +7,7 @@ import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '..
 import './Dashboard.css'
 
 const SYSTEM_STATE_LABELS = ['Нормален', 'Предупреждение', 'Грешка', 'Безопасен режим', 'Резервен']
-const REFRESH_INTERVAL_MS = 30_000
+const REFRESH_INTERVAL_MS = 60_000
 const TEMP_THRESHOLD = 8.0
 
 function hasActiveError(errors) {
@@ -44,8 +44,8 @@ function DeviceCard({ device, onClick }) {
     >
       <div className="card-header">
         <span className="card-title">{name}</span>
-        <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
-          {alertActive ? 'Алерт' : 'OK'}
+        <span className={`alert-badge ${isOffline || alertActive ? 'alert-active' : 'alert-ok'}`}>
+          {isOffline ? 'Офлайн' : alertActive ? 'Алерт' : 'OK'}
         </span>
       </div>
 
@@ -97,7 +97,8 @@ export default function Dashboard() {
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) return
-    try {
+
+    const doFetch = async () => {
       const { data: deviceIds } = await listDevices(tenantId)
       const enriched = await Promise.all(
         deviceIds.map(async (deviceId) => {
@@ -138,9 +139,24 @@ export default function Dashboard() {
       )
       setDevices(enriched)
       setFetchError('')
+    }
+
+    try {
+      await doFetch()
     } catch (err) {
-      console.error('fetchAll: listDevices failed:', err)
-      setFetchError(err.response?.data?.error || 'Грешка при зареждане на устройствата')
+      if (err.response?.status === 401) {
+        // Give the axios interceptor time to refresh the token, then retry once.
+        await new Promise((res) => setTimeout(res, 1000))
+        try {
+          await doFetch()
+        } catch (retryErr) {
+          console.error('fetchAll: retry failed:', retryErr)
+          setFetchError(retryErr.response?.data?.error || 'Грешка при зареждане на устройствата')
+        }
+      } else {
+        console.error('fetchAll: listDevices failed:', err)
+        setFetchError(err.response?.data?.error || 'Грешка при зареждане на устройствата')
+      }
     } finally {
       setLoading(false)
     }
