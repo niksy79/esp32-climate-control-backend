@@ -34,6 +34,7 @@ func New() *Manager {
 
 // UpdateReading records the latest reading from a device.
 func (m *Manager) UpdateReading(tenantID, deviceID string, r models.Reading) {
+	r.Timestamp = time.Now().UTC()
 	sr := models.SensorReading{
 		Temperature:  r.Temperature,
 		Humidity:     r.Humidity,
