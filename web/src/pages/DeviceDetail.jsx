@@ -187,7 +187,9 @@ function TabSettings({ settings, tenantId, deviceId }) {
     const fan  = settings?.fan ?? {}
     return {
       temp_target:       temp.target        ?? 4,
+      temp_offset:       temp.offset        ?? 0,
       hum_target:        hum.target         ?? 80,
+      hum_offset:        hum.offset         ?? 0,
       fan_speed:         fan.speed          ?? 50,
       mixing_enabled:    fan.mixing_enabled ?? true,
       mixing_interval:   Math.round((fan.mixing_interval ?? 3600) / 60),
@@ -215,8 +217,8 @@ function TabSettings({ settings, tenantId, deviceId }) {
     setSaveMsg(null)
     try {
       await saveSettings(tenantId, deviceId, {
-        temp:     { target: parseFloat(form.temp_target),  offset: 0 },
-        humidity: { target: parseFloat(form.hum_target),   offset: 0 },
+        temp:     { target: parseFloat(form.temp_target), offset: parseFloat(form.temp_offset) },
+        humidity: { target: parseFloat(form.hum_target),  offset: parseFloat(form.hum_offset) },
         fan: {
           speed:            parseInt(form.fan_speed, 10),
           mixing_enabled:   form.mixing_enabled,
@@ -253,6 +255,17 @@ function TabSettings({ settings, tenantId, deviceId }) {
           </div>
 
           <div className="dd-settings-row">
+            <label className="dd-settings-label" htmlFor="temp_offset">Офсет температура (°C)</label>
+            <input
+              id="temp_offset"
+              className="dd-settings-input"
+              type="number" step="0.1" min="-10" max="10"
+              value={form.temp_offset}
+              onChange={(e) => setField('temp_offset', e.target.value)}
+            />
+          </div>
+
+          <div className="dd-settings-row">
             <label className="dd-settings-label" htmlFor="hum_target">Target влажност (%)</label>
             <input
               id="hum_target"
@@ -260,6 +273,17 @@ function TabSettings({ settings, tenantId, deviceId }) {
               type="number" step="1" min="0" max="100"
               value={form.hum_target}
               onChange={(e) => setField('hum_target', e.target.value)}
+            />
+          </div>
+
+          <div className="dd-settings-row">
+            <label className="dd-settings-label" htmlFor="hum_offset">Офсет влажност (%)</label>
+            <input
+              id="hum_offset"
+              className="dd-settings-input"
+              type="number" step="0.1" min="-10" max="10"
+              value={form.hum_offset}
+              onChange={(e) => setField('hum_offset', e.target.value)}
             />
           </div>
 
