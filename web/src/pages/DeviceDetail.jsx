@@ -193,7 +193,7 @@ function TabSettings({ settings, tenantId, deviceId }) {
       fan_speed:         fan.speed          ?? 50,
       mixing_enabled:    fan.mixing_enabled ?? true,
       mixing_interval:   Math.round((fan.mixing_interval_s ?? 3600) / 60),
-      mixing_duration:   fan.mixing_duration_s ?? 300,
+      mixing_duration:   Math.round((fan.mixing_duration_s ?? 300) / 60),
     }
   }, [settings])
 
@@ -223,7 +223,7 @@ function TabSettings({ settings, tenantId, deviceId }) {
           speed:            parseInt(form.fan_speed, 10),
           mixing_enabled:   form.mixing_enabled,
           mixing_interval:  parseInt(form.mixing_interval, 10) * 60,
-          mixing_duration:  parseInt(form.mixing_duration, 10),
+          mixing_duration:  parseInt(form.mixing_duration, 10) * 60,
         },
       })
       setSaveMsg({ type: 'ok', text: 'Настройките са запазени' })
@@ -328,11 +328,11 @@ function TabSettings({ settings, tenantId, deviceId }) {
           </div>
 
           <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="mixing_duration">Продължителност миксиране (сек)</label>
+            <label className="dd-settings-label" htmlFor="mixing_duration">Продължителност миксиране (мин)</label>
             <input
               id="mixing_duration"
               className="dd-settings-input"
-              type="number" step="1" min="10"
+              type="number" step="1" min="1"
               value={form.mixing_duration}
               onChange={(e) => setField('mixing_duration', e.target.value)}
             />

@@ -210,8 +210,13 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Temp     *models.TempSettings     `json:"temp"`
 		Humidity *models.HumiditySettings `json:"humidity"`
-		Fan      *models.FanSettings      `json:"fan"`
-		Light    *models.LightSettings    `json:"light"`
+		Fan      *struct {
+			Speed          uint8  `json:"speed"`
+			MixingInterval uint32 `json:"mixing_interval"`
+			MixingDuration uint32 `json:"mixing_duration"`
+			MixingEnabled  bool   `json:"mixing_enabled"`
+		} `json:"fan"`
+		Light *models.LightSettings `json:"light"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
@@ -231,7 +236,15 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if body.Fan != nil {
-		if err := h.svc.Storage.SaveFanSettings(r.Context(), tenantID, deviceID, *body.Fan); err != nil {
+		fs := models.FanSettings{
+			Speed:          body.Fan.Speed,
+			MixingInterval: body.Fan.MixingInterval,
+			MixingDuration: body.Fan.MixingDuration,
+			MixingEnabled:  body.Fan.MixingEnabled,
+		}
+		log.Printf("api: save fan settings %s/%s: speed=%d interval=%d duration=%d enabled=%v",
+			tenantID, deviceID, fs.Speed, fs.MixingInterval, fs.MixingDuration, fs.MixingEnabled)
+		if err := h.svc.Storage.SaveFanSettings(r.Context(), tenantID, deviceID, fs); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

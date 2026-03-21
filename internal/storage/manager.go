@@ -91,6 +91,8 @@ func (m *Manager) SaveHumiditySettings(ctx context.Context, tenantID, deviceID s
 
 // SaveFanSettings updates fan settings and persists them.
 func (m *Manager) SaveFanSettings(ctx context.Context, tenantID, deviceID string, fs models.FanSettings) error {
+	log.Printf("storage: SaveFanSettings %s/%s: speed=%d interval=%d duration=%d enabled=%v",
+		tenantID, deviceID, fs.Speed, fs.MixingInterval, fs.MixingDuration, fs.MixingEnabled)
 	m.mu.Lock()
 	m.getOrCreate(tenantID, deviceID).fan = fs
 	ds := m.devices[tenantKey(tenantID, deviceID)]
