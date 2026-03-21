@@ -714,6 +714,9 @@ export default function DeviceDetail() {
 
   const alertActive = hasActiveError(status?.errors ?? [])
   const deviceName = status?.device_name || deviceId
+  const health = current?.health ?? null   // 0=Good, 1=Warning, 2=Error/Offline
+  const isOffline = current?.temperature == null || health === 2
+  const isStale   = !isOffline && health === 1
 
   if (loading) {
     return (
@@ -737,6 +740,8 @@ export default function DeviceDetail() {
         <div className="dd-header-left">
           <button className="dd-back-btn" onClick={() => navigate('/')}>← Назад</button>
           <span className="dd-device-name">{deviceName}</span>
+          {isOffline && <span className="dd-health-badge dd-health-offline">Офлайн</span>}
+          {isStale   && <span className="dd-health-badge dd-health-stale">Стар сигнал</span>}
           <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
             {alertActive ? 'Алерт' : 'OK'}
           </span>

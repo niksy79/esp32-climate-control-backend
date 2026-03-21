@@ -23,7 +23,9 @@ function RelayBadge({ label, on }) {
 }
 
 function DeviceCard({ device, onClick }) {
-  const isOffline = device.temperature === null
+  const health = device.health   // 0=Good, 1=Warning, 2=Error/Offline
+  const isOffline = device.temperature === null || health === 2
+  const isStale   = !isOffline && health === 1
   const compressorOn = device.deviceStates?.compressor ?? false
   const fanOn = device.deviceStates?.fan_compressor ?? false
   const lightOn = device.deviceStates?.light ?? false
@@ -58,7 +60,7 @@ function DeviceCard({ device, onClick }) {
             {formatTemperature(device.temperature)}
           </span>
         )}
-        <span className="reading-hum">
+        <span className={`reading-hum${isOffline ? '' : isStale ? ' reading-stale' : ''}`}>
           {isOffline ? '— %' : formatHumidity(device.humidity)}
         </span>
       </div>
@@ -71,7 +73,10 @@ function DeviceCard({ device, onClick }) {
 
       <div className="card-state">{stateLabel}</div>
 
-      <div className="card-footer">{relativeTime(device.timestamp)}</div>
+      <div className="card-footer">
+        {relativeTime(device.timestamp)}
+        {isStale && <span className="stale-indicator">· Стар сигнал</span>}
+      </div>
     </div>
   )
 }
@@ -102,6 +107,7 @@ export default function Dashboard() {
             temperature: null,
             humidity: null,
             timestamp: null,
+            health: null,
             deviceStates: null,
             systemState: null,
             errors: [],
@@ -119,6 +125,7 @@ export default function Dashboard() {
               temperature: current?.temperature ?? null,
               humidity: current?.humidity ?? null,
               timestamp: current?.timestamp ?? null,
+              health: current?.health ?? null,
               deviceStates: status?.device_states ?? null,
               systemState: status?.system_status?.state ?? null,
               errors: status?.errors ?? [],

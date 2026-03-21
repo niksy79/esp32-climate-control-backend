@@ -51,6 +51,28 @@
   letter-spacing: 0.03em;
 }
 
+/* ── Health badges (header) ───────────────────────────────── */
+.dd-health-badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.dd-health-offline {
+  background: rgba(100, 116, 139, 0.15);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.dd-health-stale {
+  background: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
 /* Alert badge — reused from Dashboard */
 .alert-badge {
   flex-shrink: 0;

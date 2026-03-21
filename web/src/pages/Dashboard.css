@@ -275,6 +275,16 @@
   letter-spacing: 0.02em;
 }
 
+/* ── Stale signal ─────────────────────────────────────────── */
+.reading-stale {
+  color: #facc15 !important;
+}
+
+.stale-indicator {
+  color: #facc15;
+  margin-left: 4px;
+}
+
 /* ── Footer ───────────────────────────────────────────────── */
 .card-footer {
   font-size: 0.6875rem;
