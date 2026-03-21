@@ -54,6 +54,7 @@ func (m *Manager) UpdateReading(tenantID, deviceID string, r models.Reading) {
 }
 
 // GetLatest returns the most recent reading for a tenant/device pair.
+// Health is recalculated dynamically based on how stale the reading is.
 func (m *Manager) GetLatest(tenantID, deviceID string) (models.SensorReading, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -61,7 +62,17 @@ func (m *Manager) GetLatest(tenantID, deviceID string) (models.SensorReading, bo
 	if !ok {
 		return models.SensorReading{}, false
 	}
-	return ds.latest, true
+	sr := ds.latest
+	age := time.Since(sr.Timestamp).Seconds()
+	switch {
+	case age > errorThresholdSec:
+		sr.Health = models.SensorHealthError
+	case age > warningThresholdSec:
+		sr.Health = models.SensorHealthWarning
+	default:
+		sr.Health = models.SensorHealthGood
+	}
+	return sr, true
 }
 
 // Health returns the current sensor health, factoring in reading staleness.
