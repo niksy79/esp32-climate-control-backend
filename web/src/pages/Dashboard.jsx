@@ -1,0 +1,212 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useWebSocket } from '../hooks/useWebSocket'
+import { listDevices, getCurrentReading, getDeviceStatus } from '../api/index'
+import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
+import './Dashboard.css'
+
+const SYSTEM_STATE_LABELS = ['Нормален', 'Предупреждение', 'Грешка', 'Безопасен режим', 'Резервен']
+const REFRESH_INTERVAL_MS = 30_000
+const TEMP_THRESHOLD = 8.0
+
+function hasActiveError(errors) {
+  return Array.isArray(errors) && errors.some((e) => e.active)
+}
+
+function RelayBadge({ label, on }) {
+  return (
+    <span className={`relay-badge ${on ? 'relay-on' : 'relay-off'}`}>
+      {label}&nbsp;{on ? 'ON' : 'OFF'}
+    </span>
+  )
+}
+
+function DeviceCard({ device, onClick }) {
+  const isOffline = device.temperature === null
+  const compressorOn = device.deviceStates?.compressor ?? false
+  const fanOn = device.deviceStates?.fan_compressor ?? false
+  const lightOn = device.deviceStates?.light ?? false
+  const alertActive = hasActiveError(device.errors)
+  const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'
+  const name = device.deviceName || device.deviceId
+  const tempHigh = !isOffline && device.temperature > TEMP_THRESHOLD
+
+  return (
+    <div
+      className="device-card"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+    >
+      <div className="card-header">
+        <span className="card-title">{name}</span>
+        <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
+          {alertActive ? 'Алерт' : 'OK'}
+        </span>
+      </div>
+
+      <div className="card-readings">
+        {isOffline ? (
+          <div className="offline-row">
+            <span className="offline-badge">Офлайн</span>
+            <span className="reading-temp offline-dash">—</span>
+          </div>
+        ) : (
+          <span className={`reading-temp${tempHigh ? ' temp-high' : ''}`}>
+            {formatTemperature(device.temperature)}
+          </span>
+        )}
+        <span className="reading-hum">
+          {isOffline ? '— %' : formatHumidity(device.humidity)}
+        </span>
+      </div>
+
+      <div className="relay-badges">
+        <RelayBadge label="Компресор" on={compressorOn} />
+        <RelayBadge label="Вентилатор" on={fanOn} />
+        <RelayBadge label="Осветление" on={lightOn} />
+      </div>
+
+      <div className="card-state">{stateLabel}</div>
+
+      <div className="card-footer">{relativeTime(device.timestamp)}</div>
+    </div>
+  )
+}
+
+export default function Dashboard() {
+  const { token, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const claims = token ? decodeToken(token) : null
+  const tenantId = claims?.tenant_id ?? null
+
+  const [devices, setDevices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
+
+  const devicesRef = useRef(devices)
+  devicesRef.current = devices
+
+  const fetchAll = useCallback(async () => {
+    if (!tenantId) return
+    try {
+      const { data: deviceIds } = await listDevices(tenantId)
+      const enriched = await Promise.all(
+        deviceIds.map(async (deviceId) => {
+          const base = {
+            deviceId,
+            deviceName: null,
+            temperature: null,
+            humidity: null,
+            timestamp: null,
+            deviceStates: null,
+            systemState: null,
+            errors: [],
+          }
+          try {
+            const [currentRes, statusRes] = await Promise.allSettled([
+              getCurrentReading(tenantId, deviceId),
+              getDeviceStatus(tenantId, deviceId),
+            ])
+            const current = currentRes.status === 'fulfilled' ? currentRes.value.data : null
+            const status = statusRes.status === 'fulfilled' ? statusRes.value.data : null
+            return {
+              ...base,
+              deviceName: status?.device_name ?? null,
+              temperature: current?.temperature ?? null,
+              humidity: current?.humidity ?? null,
+              timestamp: current?.timestamp ?? null,
+              deviceStates: status?.device_states ?? null,
+              systemState: status?.system_status?.state ?? null,
+              errors: status?.errors ?? [],
+            }
+          } catch (err) {
+            console.error(`fetchAll: device ${deviceId}:`, err)
+            return base
+          }
+        })
+      )
+      setDevices(enriched)
+      setFetchError('')
+    } catch (err) {
+      console.error('fetchAll: listDevices failed:', err)
+      setFetchError(err.response?.data?.error || 'Грешка при зареждане на устройствата')
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId])
+
+  // Initial fetch + 30s polling
+  useEffect(() => {
+    fetchAll()
+    const id = setInterval(fetchAll, REFRESH_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [fetchAll])
+
+  // WebSocket live updates
+  const { lastMessage, readyState } = useWebSocket(tenantId, token)
+  useEffect(() => {
+    if (!lastMessage || lastMessage.type !== 'sensor') return
+    setDevices((prev) =>
+      prev.map((d) =>
+        d.deviceId === lastMessage.device_id
+          ? {
+              ...d,
+              temperature: lastMessage.temperature,
+              humidity: lastMessage.humidity,
+              timestamp: lastMessage.timestamp,
+            }
+          : d
+      )
+    )
+  }, [lastMessage])
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
+  const isLive = readyState === WebSocket.OPEN
+
+  return (
+    <div className="dashboard">
+      <header className="dashboard-header">
+        <div className="header-left">
+          <h1 className="dashboard-title">Climate Control</h1>
+          <span className="live-indicator">
+            <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
+            Живо
+          </span>
+        </div>
+        <button className="logout-btn" onClick={handleLogout}>Изход</button>
+      </header>
+
+      <main className="dashboard-main">
+        {loading && <p className="state-msg">Зареждане на устройствата...</p>}
+
+        {!loading && fetchError && (
+          <p className="state-msg error-msg">{fetchError}</p>
+        )}
+
+        {!loading && !fetchError && devices.length === 0 && (
+          <p className="state-msg">Няма намерени устройства.</p>
+        )}
+
+        {!loading && !fetchError && devices.length > 0 && (
+          <div className="device-grid">
+            {devices.map((d) => (
+              <DeviceCard
+                key={d.deviceId}
+                device={d}
+                onClick={() => navigate(`/device/${d.deviceId}`)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

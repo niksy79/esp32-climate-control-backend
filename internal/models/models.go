@@ -130,21 +130,37 @@ type DisplaySettings struct {
 type ModeType int
 
 const (
-	ModeNormal          ModeType = iota
-	ModeHeating
-	ModeBeercooling
-	ModeRoomTemp
-	ModeProductMeatFish
-	ModeProductDairy
-	ModeProductReadyFood
-	ModeProductVegetables
+	ModeNormal          ModeType = 0
+	ModeHeating         ModeType = 1
+	ModeBeercooling     ModeType = 2
+	ModeRoomTemp        ModeType = 3
+	ModeProductMeatFish ModeType = 10
+	ModeProductDairy    ModeType = 11
+	ModeProductReadyFood ModeType = 12
+	ModeProductVegetables ModeType = 13
 )
 
 func (m ModeType) String() string {
-	return [...]string{
-		"normal", "heating", "beer_cooling", "room_temp",
-		"product_meat_fish", "product_dairy", "product_ready_food", "product_vegetables",
-	}[m]
+	switch m {
+	case ModeNormal:
+		return "normal"
+	case ModeHeating:
+		return "heating"
+	case ModeBeercooling:
+		return "beer_cooling"
+	case ModeRoomTemp:
+		return "room_temp"
+	case ModeProductMeatFish:
+		return "product_meat_fish"
+	case ModeProductDairy:
+		return "product_dairy"
+	case ModeProductReadyFood:
+		return "product_ready_food"
+	case ModeProductVegetables:
+		return "product_vegetables"
+	default:
+		return "unknown"
+	}
 }
 
 type OperationalMode int

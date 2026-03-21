@@ -27,7 +27,10 @@
       "Bash(docker ps:*)",
       "Bash(fuser 8080/tcp)",
       "Bash(mosquitto_pub -h 192.168.68.117 -t \"climate/tenant1/773C/logs\" -m \"Test log message from mosquitto\")",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

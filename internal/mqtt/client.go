@@ -102,7 +102,8 @@ func (c *Client) PublishConfig(tenantID, deviceID string, payload any) error {
 }
 
 // PublishCommand publishes a JSON command to a specific tenant's device.
-// Topic: <prefix>/<tenantID>/<deviceID>/cmd/<command>
+// Topic: <prefix>/<tenantID>/<deviceID>/cmd/<command>  (QoS 1, not retained)
+// Returns an error if the broker does not acknowledge within 5 seconds.
 func (c *Client) PublishCommand(tenantID, deviceID, command string, payload any) error {
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -110,7 +111,9 @@ func (c *Client) PublishCommand(tenantID, deviceID, command string, payload any)
 	}
 	topic := fmt.Sprintf("%s/%s/%s/cmd/%s", c.topicPfx, tenantID, deviceID, command)
 	tok := c.paho.Publish(topic, 1, false, b)
-	tok.Wait()
+	if !tok.WaitTimeout(5 * time.Second) {
+		return fmt.Errorf("mqtt: publish command %s/%s/%s: timeout", tenantID, deviceID, command)
+	}
 	return tok.Error()
 }
 

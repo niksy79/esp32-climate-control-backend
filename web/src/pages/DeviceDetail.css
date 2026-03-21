@@ -1,0 +1,529 @@
+/* ── Base ─────────────────────────────────────────────────── */
+.dd-page {
+  min-height: 100vh;
+  background: #0f1117;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #e2e8f0;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.dd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: #13151f;
+  border-bottom: 1px solid #2a2d3a;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dd-back-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #2a2d3a;
+  border-radius: 7px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.dd-back-btn:hover {
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.dd-device-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.03em;
+}
+
+/* Alert badge — reused from Dashboard */
+.alert-badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.alert-active {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-ok {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.dd-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 28px;
+  background: #13151f;
+  border-bottom: 1px solid #2a2d3a;
+}
+
+.dd-tab {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.dd-tab:hover {
+  color: #94a3b8;
+}
+
+.dd-tab-active {
+  color: #f1f5f9;
+  border-bottom-color: #3b82f6;
+}
+
+/* ── Tab content wrapper ──────────────────────────────────── */
+.dd-tab-content {
+  padding: 28px 28px;
+  flex: 1;
+}
+
+/* ── States ───────────────────────────────────────────────── */
+.dd-state-msg {
+  text-align: center;
+  color: #475569;
+  font-size: 0.9375rem;
+  margin-top: 80px;
+}
+
+.dd-error-msg {
+  color: #f87171;
+}
+
+.dd-empty {
+  color: #475569;
+  font-size: 0.9rem;
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* ── Chart ────────────────────────────────────────────────── */
+.dd-chart-wrap {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+  padding: 20px 12px 12px;
+}
+
+.chart-tooltip {
+  background: #1e2130;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.chart-tooltip-time {
+  color: #64748b;
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+}
+
+/* ── Stats row ────────────────────────────────────────────── */
+.dd-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 24px;
+  padding: 20px;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+}
+
+.dd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 100px;
+}
+
+.dd-stat-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dd-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1;
+}
+
+.dd-stat-value.temp-high {
+  color: #f87171;
+}
+
+.dd-stat-value.hum-value {
+  color: #94a3b8;
+}
+
+/* Relay badges — match Dashboard */
+.relay-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.relay-on {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.relay-off {
+  background: rgba(30, 33, 48, 0.8);
+  color: #475569;
+  border: 1px solid #2a2d3a;
+}
+
+/* System state badges — match Dashboard */
+.state-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.state-badge.state-normal    { background: #1e3a5f; color: #60a5fa; }
+.state-badge.state-warning   { background: #3b2f00; color: #fbbf24; }
+.state-badge.state-error     { background: #3b0f0f; color: #f87171; }
+.state-badge.state-safe-mode { background: #2d1b4e; color: #c084fc; }
+.state-badge.state-fallback  { background: #3b1f00; color: #fb923c; }
+
+.dd-updated {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: #334155;
+}
+
+/* ── Settings ─────────────────────────────────────────────── */
+.dd-settings-list {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0;
+}
+
+.dd-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #2a2d3a;
+}
+
+.dd-settings-row:last-child {
+  border-bottom: none;
+}
+
+.dd-settings-label {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.dd-settings-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+/* ── Settings form ────────────────────────────────────────── */
+.dd-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dd-settings-input {
+  width: 120px;
+  padding: 7px 10px;
+  background: #0f1117;
+  border: 1px solid #2a2d3a;
+  border-radius: 7px;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+  /* hide browser spin buttons */
+  -moz-appearance: textfield;
+}
+
+.dd-settings-input::-webkit-outer-spin-button,
+.dd-settings-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.dd-settings-input:focus {
+  border-color: #3b82f6;
+}
+
+/* Toggle */
+.dd-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dd-toggle input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dd-toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #2a2d3a;
+  border-radius: 999px;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.dd-toggle input:checked + .dd-toggle-track {
+  background: #3b82f6;
+}
+
+.dd-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: #94a3b8;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.dd-toggle input:checked + .dd-toggle-track .dd-toggle-thumb {
+  transform: translateX(18px);
+  background: #ffffff;
+}
+
+.dd-toggle-label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  min-width: 72px;
+}
+
+/* Save button */
+.dd-save-btn {
+  width: 100%;
+  height: 44px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.dd-save-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.dd-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Save feedback messages */
+.dd-save-msg {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  margin: 0;
+}
+
+.dd-save-ok  { color: #4ade80; }
+.dd-save-err { color: #f87171; }
+
+/* ── Alert form ───────────────────────────────────────────── */
+.dd-alert-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.dd-form-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dd-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dd-input-wide {
+  width: 200px;
+  text-align: left;
+}
+
+/* ── Alert rules list ─────────────────────────────────────── */
+.dd-alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dd-alert-item {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dd-alert-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dd-alert-condition {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.dd-alert-channel {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.dd-alert-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dd-alert-cooldown {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.dd-delete-btn {
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dd-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.dd-alert-status {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.alert-enabled {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.alert-disabled {
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+  border: 1px solid #2a2d3a;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .dd-header,
+  .dd-tabs,
+  .dd-tab-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .dd-stats-row {
+    gap: 14px;
+  }
+
+  .dd-tab {
+    padding: 10px 14px;
+    font-size: 0.8125rem;
+  }
+}

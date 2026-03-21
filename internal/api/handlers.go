@@ -25,11 +25,12 @@ import (
 	"climate-backend/internal/ws"
 )
 
-// ConfigPublisher can push a config payload to a device over MQTT.
+// ConfigPublisher can push payloads to a device over MQTT.
 // Implemented by mqtt.Client; defined here as an interface so the api package
 // does not import the mqtt package directly.
 type ConfigPublisher interface {
 	PublishConfig(tenantID, deviceID string, payload any) error
+	PublishCommand(tenantID, deviceID, command string, payload any) error
 }
 
 // Services bundles all manager dependencies.
@@ -273,10 +274,19 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	// TODO: publish MQTT command: climate/<tenantID>/<deviceID>/cmd/switch_mode
-	_ = tenantID
-	_ = deviceID
-	jsonResp(w, map[string]any{"mode": body.Mode, "queued": true})
+	validModes := map[int]bool{0: true, 1: true, 2: true, 3: true, 10: true, 11: true, 12: true, 13: true}
+	if !validModes[body.Mode] {
+		http.Error(w, "invalid mode: must be one of 0, 1, 2, 3, 10, 11, 12, 13", http.StatusBadRequest)
+		return
+	}
+	if h.svc.MQTT != nil {
+		if err := h.svc.MQTT.PublishCommand(tenantID, deviceID, "mode", map[string]any{"mode": body.Mode}); err != nil {
+			log.Printf("api: mqtt publish mode %s/%s: %v", tenantID, deviceID, err)
+			http.Error(w, "mqtt publish failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) handleListDevices(w http.ResponseWriter, r *http.Request) {
