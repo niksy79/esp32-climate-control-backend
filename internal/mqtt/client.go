@@ -66,8 +66,6 @@ func New(cfg Config, h Handlers) (*Client, error) {
 		SetUsername(cfg.Username).
 		SetPassword(cfg.Password).
 		SetAutoReconnect(true).
-		SetConnectRetry(true).
-		SetConnectRetryInterval(5 * time.Second).
 		SetOnConnectHandler(c.onConnect).
 		SetConnectionLostHandler(func(_ paho.Client, err error) {
 			log.Printf("mqtt: connection lost: %v", err)
