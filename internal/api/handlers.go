@@ -256,12 +256,12 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Push temp/humidity config to the device over MQTT.
+	// Push config to the device over MQTT.
 	// Only include fields whose settings were present in this request.
 	// A publish failure does not fail the HTTP response — settings are already
 	// persisted to DB and will be re-applied on next device connection.
-	if h.svc.MQTT != nil && (body.Temp != nil || body.Humidity != nil) {
-		cfg := map[string]float32{}
+	if h.svc.MQTT != nil && (body.Temp != nil || body.Humidity != nil || body.Fan != nil) {
+		cfg := map[string]any{}
 		if body.Temp != nil {
 			cfg["temp_target"] = body.Temp.Target
 			cfg["temp_offset"] = body.Temp.Offset
@@ -269,6 +269,12 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		if body.Humidity != nil {
 			cfg["hum_target"] = body.Humidity.Target
 			cfg["hum_offset"] = body.Humidity.Offset
+		}
+		if body.Fan != nil {
+			cfg["fan_speed"]        = body.Fan.Speed
+			cfg["mixing_enabled"]   = body.Fan.MixingEnabled
+			cfg["mixing_interval"]  = body.Fan.MixingInterval
+			cfg["mixing_duration"]  = body.Fan.MixingDuration
 		}
 		if err := h.svc.MQTT.PublishConfig(tenantID, deviceID, cfg); err != nil {
 			log.Printf("api: mqtt config publish %s/%s: %v", tenantID, deviceID, err)
