@@ -193,7 +193,7 @@ func (h *Handler) handleErrors(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
-	ts, hs, fs, ls, ss, ds := h.svc.Storage.LoadSettings(tenantID, deviceID)
+	ts, hs, fs, ls, ss, ds := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
 	jsonResp(w, map[string]any{
 		"temp":     ts,
 		"humidity": hs,

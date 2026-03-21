@@ -4,6 +4,8 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"log"
 	"sync"
 
 	"climate-backend/internal/db"
@@ -36,11 +38,33 @@ func New(database *db.DB) *Manager {
 	}
 }
 
-// LoadSettings returns all settings for a tenant/device pair from the in-memory cache.
-func (m *Manager) LoadSettings(tenantID, deviceID string) (
+// LoadSettings returns all settings for a tenant/device pair.
+// On cache miss it loads from the database before returning.
+func (m *Manager) LoadSettings(ctx context.Context, tenantID, deviceID string) (
 	models.TempSettings, models.HumiditySettings, models.FanSettings,
 	models.LightSettings, models.SystemSettings, models.DisplaySettings,
 ) {
+	m.mu.RLock()
+	_, cached := m.devices[tenantKey(tenantID, deviceID)]
+	m.mu.RUnlock()
+
+	if !cached && m.db != nil {
+		ts, hs, fs, ls, opMode, activeMode, err := m.db.GetSettings(ctx, tenantID, deviceID)
+		if err != nil && !errors.Is(err, db.ErrNoRows) {
+			log.Printf("storage: load settings %s/%s: %v", tenantID, deviceID, err)
+		} else if err == nil {
+			m.mu.Lock()
+			ds := m.getOrCreate(tenantID, deviceID)
+			ds.temp = ts
+			ds.humidity = hs
+			ds.fan = fs
+			ds.light = ls
+			ds.mode = opMode
+			ds.activeMode = activeMode
+			m.mu.Unlock()
+		}
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	ds := m.getOrCreate(tenantID, deviceID)

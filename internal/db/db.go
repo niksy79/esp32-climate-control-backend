@@ -354,6 +354,51 @@ func (d *DB) GetActiveErrors(ctx context.Context, tenantID, deviceID string) ([]
 // Device settings
 // ---------------------------------------------------------------------------
 
+// GetSettings loads the persisted settings for a tenant/device pair.
+// Returns ErrNoRows if no row exists yet.
+func (d *DB) GetSettings(ctx context.Context, tenantID, deviceID string) (
+	models.TempSettings, models.HumiditySettings, models.FanSettings,
+	models.LightSettings, models.OperationalMode, models.ModeType, error,
+) {
+	var (
+		ts         models.TempSettings
+		hs         models.HumiditySettings
+		fs         models.FanSettings
+		ls         models.LightSettings
+		opModeStr  string
+		activeModeInt int
+	)
+	err := d.pool.QueryRow(ctx, `
+		SELECT temp_target, temp_offset,
+		       humidity_target, humidity_offset,
+		       fan_speed, mixing_interval_s, mixing_duration_s, mixing_enabled,
+		       light_mode, light_state,
+		       operational_mode, active_mode
+		FROM device_settings
+		WHERE tenant_id = $1 AND device_id = $2`,
+		tenantID, deviceID,
+	).Scan(
+		&ts.Target, &ts.Offset,
+		&hs.Target, &hs.Offset,
+		&fs.Speed, &fs.MixingInterval, &fs.MixingDuration, &fs.MixingEnabled,
+		&ls.Mode, &ls.State,
+		&opModeStr, &activeModeInt,
+	)
+	if err != nil {
+		return ts, hs, fs, ls, 0, 0, err
+	}
+	var opMode models.OperationalMode
+	switch opModeStr {
+	case "fallback":
+		opMode = models.OperationalModeFallback
+	case "emergency":
+		opMode = models.OperationalModeEmergency
+	default:
+		opMode = models.OperationalModeNormal
+	}
+	return ts, hs, fs, ls, opMode, models.ModeType(activeModeInt), nil
+}
+
 // UpsertSettings persists the full settings block for a tenant/device pair.
 func (d *DB) UpsertSettings(ctx context.Context, tenantID, deviceID string,
 	ts models.TempSettings, hs models.HumiditySettings,
