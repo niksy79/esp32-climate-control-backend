@@ -4,7 +4,8 @@ import "net/http"
 
 var corsAllowedOrigins = map[string]bool{
 	"http://localhost:5173":         true,
-	"https://climate.gotocloud.xyz": true,
+	"https://climate.gotocloud.xyz":     true,
+	"https://climate-app.gotocloud.xyz": true,
 }
 
 // corsMiddleware sets CORS headers for allowed origins and short-circuits
