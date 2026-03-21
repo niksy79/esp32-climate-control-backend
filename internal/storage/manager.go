@@ -109,6 +109,17 @@ func (m *Manager) SaveLightSettings(ctx context.Context, tenantID, deviceID stri
 	return m.persist(ctx, tenantID, deviceID, ds)
 }
 
+// SaveActiveMode updates the active mode in the cache and persists it to the DB.
+func (m *Manager) SaveActiveMode(ctx context.Context, tenantID, deviceID string, mode int) error {
+	m.mu.Lock()
+	m.getOrCreate(tenantID, deviceID).activeMode = models.ModeType(mode)
+	m.mu.Unlock()
+	if m.db == nil {
+		return nil
+	}
+	return m.db.SaveActiveMode(ctx, tenantID, deviceID, mode)
+}
+
 // UpdateFromSnapshot ingests a full device snapshot and refreshes the cache.
 func (m *Manager) UpdateFromSnapshot(ctx context.Context, tenantID, deviceID string, snap models.DeviceSnapshot) error {
 	m.mu.Lock()

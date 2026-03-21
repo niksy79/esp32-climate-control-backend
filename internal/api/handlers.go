@@ -305,6 +305,10 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if err := h.svc.Storage.SaveActiveMode(r.Context(), tenantID, deviceID, body.Mode); err != nil {
+		log.Printf("api: save active mode %s/%s: %v", tenantID, deviceID, err)
+	}
+	h.svc.Control.SetActiveMode(tenantID, deviceID, models.ModeType(body.Mode))
 	w.WriteHeader(http.StatusNoContent)
 }
 

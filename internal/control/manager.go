@@ -52,6 +52,13 @@ func (m *Manager) UpdateSnapshot(tenantID, deviceID string, snap models.DeviceSn
 	dc.LastUpdated = time.Now()
 }
 
+// SetActiveMode updates only the active mode for a tenant/device pair.
+func (m *Manager) SetActiveMode(tenantID, deviceID string, mode models.ModeType) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.getOrCreate(tenantID, deviceID).ActiveMode = mode
+}
+
 // RecordCompressorCycle updates running compressor statistics.
 func (m *Manager) RecordCompressorCycle(tenantID, deviceID string, cyc models.CompressorCycle) {
 	m.mu.Lock()

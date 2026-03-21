@@ -399,6 +399,17 @@ func (d *DB) GetSettings(ctx context.Context, tenantID, deviceID string) (
 	return ts, hs, fs, ls, opMode, models.ModeType(activeModeInt), nil
 }
 
+// SaveActiveMode updates only the active_mode column for a tenant/device pair.
+func (d *DB) SaveActiveMode(ctx context.Context, tenantID, deviceID string, mode int) error {
+	_, err := d.pool.Exec(ctx, `
+		UPDATE device_settings
+		SET active_mode = $1, updated_at = NOW()
+		WHERE tenant_id = $2 AND device_id = $3`,
+		mode, tenantID, deviceID,
+	)
+	return err
+}
+
 // UpsertSettings persists the full settings block for a tenant/device pair.
 func (d *DB) UpsertSettings(ctx context.Context, tenantID, deviceID string,
 	ts models.TempSettings, hs models.HumiditySettings,
