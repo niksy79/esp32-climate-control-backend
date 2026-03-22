@@ -11,6 +11,9 @@ climate-backend
 *.out
 vendor/
 
+# Claude AI context (may contain sensitive info)
+CLAUDE.md
+
 # IDE
 .vscode/
 .idea/
