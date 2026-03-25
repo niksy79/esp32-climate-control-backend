@@ -210,6 +210,19 @@ ON CONFLICT (device_type_id, name) DO NOTHING;
 // the given (tenant_id, device_id) pair.  It is called automatically before
 // any data insert so that ESP32 devices self-register on first contact without
 // needing to publish an identity message first.
+// DeviceExists returns true when the (tenantID, deviceID) pair has a row in devices.
+func (d *DB) DeviceExists(ctx context.Context, tenantID, deviceID string) (bool, error) {
+	var exists bool
+	err := d.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM devices WHERE tenant_id=$1 AND device_id=$2)`,
+		tenantID, deviceID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("db: device exists %s/%s: %w", tenantID, deviceID, err)
+	}
+	return exists, nil
+}
+
 func (d *DB) EnsureDevice(ctx context.Context, tenantID, deviceID string) error {
 	_, err := d.pool.Exec(ctx, `
 		INSERT INTO devices (tenant_id, device_id)

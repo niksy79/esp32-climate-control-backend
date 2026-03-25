@@ -133,11 +133,16 @@ func (h *Handler) handleCurrent(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
-	s, ok := h.svc.Status.Get(tenantID, deviceID)
-	if !ok {
+	exists, err := h.svc.DB.DeviceExists(r.Context(), tenantID, deviceID)
+	if err != nil {
+		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !exists {
 		http.Error(w, "device not found", http.StatusNotFound)
 		return
 	}
+	s, _ := h.svc.Status.Get(tenantID, deviceID)
 	dc, _ := h.svc.Control.GetControl(tenantID, deviceID)
 	jsonResp(w, map[string]any{
 		"system_status":    s,
