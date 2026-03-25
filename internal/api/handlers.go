@@ -95,6 +95,21 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleUpdateAlertRule).Methods(http.MethodPut)
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
 
+	protected.HandleFunc(base+"/{device_id}/type", h.handleSetDeviceType).Methods(http.MethodPost)
+
+	// ── Device-type registry routes ──────────────────────────────────────────
+	// GET is public. POST/PUT require a valid admin JWT — use a subrouter so
+	// the middleware validates the token and enforces the admin role check
+	// before the handler runs. The middleware skips tenant isolation here
+	// because there is no {tenant_id} variable in these paths.
+	r.HandleFunc("/api/device-types", h.handleListDeviceTypes).Methods(http.MethodGet)
+	r.HandleFunc("/api/device-types/{type_id}", h.handleGetDeviceType).Methods(http.MethodGet)
+
+	deviceTypesAdmin := r.NewRoute().Subrouter()
+	deviceTypesAdmin.Use(authHandler.Middleware)
+	deviceTypesAdmin.HandleFunc("/api/device-types", h.handleCreateDeviceType).Methods(http.MethodPost)
+	deviceTypesAdmin.HandleFunc("/api/device-types/{type_id}", h.handleUpdateDeviceType).Methods(http.MethodPut)
+
 	// Catch-all OPTIONS handler so CORS preflight requests match a route and
 	// the corsMiddleware can respond with 200 OK + CORS headers.
 	r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
@@ -468,6 +483,110 @@ func (h *Handler) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.svc.Hub.Subscribe(tenantID, w, r)
+}
+
+// ---------------------------------------------------------------------------
+// device-type handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) handleListDeviceTypes(w http.ResponseWriter, r *http.Request) {
+	types, err := h.svc.DB.ListDeviceTypes(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: list device types: %v", err)
+		return
+	}
+	if types == nil {
+		types = []models.DeviceType{}
+	}
+	jsonResp(w, types)
+}
+
+func (h *Handler) handleGetDeviceType(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["type_id"]
+	dt, err := h.svc.DB.GetDeviceType(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: get device type %s: %v", id, err)
+		return
+	}
+	jsonResp(w, dt)
+}
+
+func (h *Handler) handleCreateDeviceType(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	var dt models.DeviceType
+	if err := json.NewDecoder(r.Body).Decode(&dt); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if dt.ID == "" || dt.DisplayName == "" {
+		http.Error(w, "id and display_name are required", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.DB.CreateDeviceType(r.Context(), dt); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: create device type %s: %v", dt.ID, err)
+		return
+	}
+	created, err := h.svc.DB.GetDeviceType(r.Context(), dt.ID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonResp(w, created)
+}
+
+func (h *Handler) handleUpdateDeviceType(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	id := mux.Vars(r)["type_id"]
+	var dt models.DeviceType
+	if err := json.NewDecoder(r.Body).Decode(&dt); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	dt.ID = id
+	if err := h.svc.DB.UpdateDeviceType(r.Context(), dt); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: update device type %s: %v", id, err)
+		return
+	}
+	updated, err := h.svc.DB.GetDeviceType(r.Context(), id)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResp(w, updated)
+}
+
+func (h *Handler) handleSetDeviceType(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	var body struct {
+		DeviceTypeID string `json:"device_type_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.DeviceTypeID == "" {
+		http.Error(w, "device_type_id is required", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.DB.SetDeviceTypeID(r.Context(), tenantID, deviceID, body.DeviceTypeID); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: set device type %s/%s: %v", tenantID, deviceID, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---------------------------------------------------------------------------

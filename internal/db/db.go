@@ -152,6 +152,54 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, device_id)
 );
+
+CREATE TABLE IF NOT EXISTS device_types (
+    id           TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    description  TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS metric_definitions (
+    id             BIGSERIAL PRIMARY KEY,
+    device_type_id TEXT NOT NULL REFERENCES device_types(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    display_name   TEXT NOT NULL,
+    unit           TEXT NOT NULL DEFAULT '',
+    data_type      TEXT NOT NULL DEFAULT 'float',
+    sort_order     INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (device_type_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS command_definitions (
+    id             BIGSERIAL PRIMARY KEY,
+    device_type_id TEXT NOT NULL REFERENCES device_types(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    display_name   TEXT NOT NULL,
+    payload_schema TEXT NOT NULL DEFAULT '{}',
+    sort_order     INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (device_type_id, name)
+);
+
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS
+    device_type_id TEXT REFERENCES device_types(id);
+
+INSERT INTO device_types (id, display_name, description)
+VALUES ('climate_controller', 'Climate Controller', 'ESP32-based temperature and humidity controller')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO metric_definitions (device_type_id, name, display_name, unit, data_type, sort_order)
+VALUES
+    ('climate_controller', 'temperature', 'Temperature', '°C', 'float', 0),
+    ('climate_controller', 'humidity', 'Humidity', '%', 'float', 1)
+ON CONFLICT (device_type_id, name) DO NOTHING;
+
+INSERT INTO command_definitions (device_type_id, name, display_name, payload_schema, sort_order)
+VALUES
+    ('climate_controller', 'set_mode', 'Set Mode', '{"mode": "string"}', 0),
+    ('climate_controller', 'set_target_temp', 'Set Target Temperature', '{"value": "float"}', 1)
+ON CONFLICT (device_type_id, name) DO NOTHING;
 `
 
 // ---------------------------------------------------------------------------
@@ -643,4 +691,168 @@ func (d *DB) LoadAllAlertRules(ctx context.Context) ([]models.AlertRule, error) 
 		rules = append(rules, r)
 	}
 	return rules, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// DeviceType queries
+// ---------------------------------------------------------------------------
+
+func (d *DB) CreateDeviceType(ctx context.Context, dt models.DeviceType) error {
+	_, err := d.pool.Exec(ctx, `
+		INSERT INTO device_types (id, display_name, description)
+		VALUES ($1, $2, $3)`,
+		dt.ID, dt.DisplayName, dt.Description)
+	if err != nil {
+		return fmt.Errorf("db: create device type %s: %w", dt.ID, err)
+	}
+	return nil
+}
+
+func (d *DB) GetDeviceType(ctx context.Context, id string) (models.DeviceType, error) {
+	var dt models.DeviceType
+	err := d.pool.QueryRow(ctx, `
+		SELECT id, display_name, description, created_at, updated_at
+		FROM device_types WHERE id = $1`, id).
+		Scan(&dt.ID, &dt.DisplayName, &dt.Description, &dt.CreatedAt, &dt.UpdatedAt)
+	if err != nil {
+		return dt, fmt.Errorf("db: get device type %s: %w", id, err)
+	}
+	dt.Metrics, err = d.ListMetricDefinitions(ctx, id)
+	if err != nil {
+		return dt, err
+	}
+	dt.Commands, err = d.ListCommandDefinitions(ctx, id)
+	if err != nil {
+		return dt, err
+	}
+	return dt, nil
+}
+
+func (d *DB) ListDeviceTypes(ctx context.Context) ([]models.DeviceType, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT id, display_name, description, created_at, updated_at
+		FROM device_types ORDER BY display_name`)
+	if err != nil {
+		return nil, fmt.Errorf("db: list device types: %w", err)
+	}
+	defer rows.Close()
+	var types []models.DeviceType
+	for rows.Next() {
+		var dt models.DeviceType
+		if err := rows.Scan(&dt.ID, &dt.DisplayName, &dt.Description, &dt.CreatedAt, &dt.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("db: scan device type: %w", err)
+		}
+		types = append(types, dt)
+	}
+	return types, nil
+}
+
+func (d *DB) UpdateDeviceType(ctx context.Context, dt models.DeviceType) error {
+	_, err := d.pool.Exec(ctx, `
+		UPDATE device_types SET display_name=$2, description=$3, updated_at=NOW()
+		WHERE id=$1`,
+		dt.ID, dt.DisplayName, dt.Description)
+	if err != nil {
+		return fmt.Errorf("db: update device type %s: %w", dt.ID, err)
+	}
+	return nil
+}
+
+func (d *DB) SetDeviceTypeID(ctx context.Context, tenantID, deviceID, deviceTypeID string) error {
+	_, err := d.pool.Exec(ctx, `
+		UPDATE devices SET device_type_id=$3
+		WHERE tenant_id=$1 AND device_id=$2`,
+		tenantID, deviceID, deviceTypeID)
+	if err != nil {
+		return fmt.Errorf("db: set device type %s/%s: %w", tenantID, deviceID, err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// MetricDefinition queries
+// ---------------------------------------------------------------------------
+
+func (d *DB) ListMetricDefinitions(ctx context.Context, deviceTypeID string) ([]models.MetricDefinition, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT id, device_type_id, name, display_name, unit, data_type, sort_order
+		FROM metric_definitions WHERE device_type_id=$1 ORDER BY sort_order`, deviceTypeID)
+	if err != nil {
+		return nil, fmt.Errorf("db: list metrics %s: %w", deviceTypeID, err)
+	}
+	defer rows.Close()
+	var metrics []models.MetricDefinition
+	for rows.Next() {
+		var m models.MetricDefinition
+		if err := rows.Scan(&m.ID, &m.DeviceTypeID, &m.Name, &m.DisplayName, &m.Unit, &m.DataType, &m.SortOrder); err != nil {
+			return nil, fmt.Errorf("db: scan metric: %w", err)
+		}
+		metrics = append(metrics, m)
+	}
+	return metrics, nil
+}
+
+func (d *DB) CreateMetricDefinition(ctx context.Context, m models.MetricDefinition) (models.MetricDefinition, error) {
+	err := d.pool.QueryRow(ctx, `
+		INSERT INTO metric_definitions (device_type_id, name, display_name, unit, data_type, sort_order)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id`,
+		m.DeviceTypeID, m.Name, m.DisplayName, m.Unit, m.DataType, m.SortOrder).
+		Scan(&m.ID)
+	if err != nil {
+		return m, fmt.Errorf("db: create metric %s/%s: %w", m.DeviceTypeID, m.Name, err)
+	}
+	return m, nil
+}
+
+func (d *DB) DeleteMetricDefinition(ctx context.Context, id int64) error {
+	_, err := d.pool.Exec(ctx, `DELETE FROM metric_definitions WHERE id=$1`, id)
+	if err != nil {
+		return fmt.Errorf("db: delete metric %d: %w", id, err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// CommandDefinition queries
+// ---------------------------------------------------------------------------
+
+func (d *DB) ListCommandDefinitions(ctx context.Context, deviceTypeID string) ([]models.CommandDefinition, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT id, device_type_id, name, display_name, payload_schema, sort_order
+		FROM command_definitions WHERE device_type_id=$1 ORDER BY sort_order`, deviceTypeID)
+	if err != nil {
+		return nil, fmt.Errorf("db: list commands %s: %w", deviceTypeID, err)
+	}
+	defer rows.Close()
+	var commands []models.CommandDefinition
+	for rows.Next() {
+		var c models.CommandDefinition
+		if err := rows.Scan(&c.ID, &c.DeviceTypeID, &c.Name, &c.DisplayName, &c.PayloadSchema, &c.SortOrder); err != nil {
+			return nil, fmt.Errorf("db: scan command: %w", err)
+		}
+		commands = append(commands, c)
+	}
+	return commands, nil
+}
+
+func (d *DB) CreateCommandDefinition(ctx context.Context, c models.CommandDefinition) (models.CommandDefinition, error) {
+	err := d.pool.QueryRow(ctx, `
+		INSERT INTO command_definitions (device_type_id, name, display_name, payload_schema, sort_order)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`,
+		c.DeviceTypeID, c.Name, c.DisplayName, c.PayloadSchema, c.SortOrder).
+		Scan(&c.ID)
+	if err != nil {
+		return c, fmt.Errorf("db: create command %s/%s: %w", c.DeviceTypeID, c.Name, err)
+	}
+	return c, nil
+}
+
+func (d *DB) DeleteCommandDefinition(ctx context.Context, id int64) error {
+	_, err := d.pool.Exec(ctx, `DELETE FROM command_definitions WHERE id=$1`, id)
+	if err != nil {
+		return fmt.Errorf("db: delete command %d: %w", id, err)
+	}
+	return nil
 }

@@ -373,6 +373,42 @@ type AlertRule struct {
 }
 
 // ---------------------------------------------------------------------------
+// Device type registry
+// ---------------------------------------------------------------------------
+
+// MetricDefinition describes a sensor metric exposed by a device type.
+type MetricDefinition struct {
+	ID           int64  `json:"id"`
+	DeviceTypeID string `json:"device_type_id"`
+	Name         string `json:"name"`
+	DisplayName  string `json:"display_name"`
+	Unit         string `json:"unit"`
+	DataType     string `json:"data_type"`
+	SortOrder    int    `json:"sort_order"`
+}
+
+// CommandDefinition describes a command that can be sent to a device type.
+type CommandDefinition struct {
+	ID            int64  `json:"id"`
+	DeviceTypeID  string `json:"device_type_id"`
+	Name          string `json:"name"`
+	DisplayName   string `json:"display_name"`
+	PayloadSchema string `json:"payload_schema"`
+	SortOrder     int    `json:"sort_order"`
+}
+
+// DeviceType groups metric and command definitions for a class of device.
+type DeviceType struct {
+	ID          string              `json:"id"`
+	DisplayName string              `json:"display_name"`
+	Description string              `json:"description"`
+	Metrics     []MetricDefinition  `json:"metrics,omitempty"`
+	Commands    []CommandDefinition `json:"commands,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+}
+
+// ---------------------------------------------------------------------------
 // Aggregated device snapshot (used for WebSocket broadcasts)
 // ---------------------------------------------------------------------------
 
