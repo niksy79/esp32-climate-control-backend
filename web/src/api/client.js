@@ -23,11 +23,13 @@ client.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    // Not a 401, or already a retry, or this IS the refresh call — don't loop
+    // Not a 401, or already a retry, or this IS an auth call — don't loop
     if (
       error.response?.status !== 401 ||
       original._retry ||
-      original.url === '/api/auth/refresh'
+      original.url === '/api/auth/refresh' ||
+      original.url === '/api/auth/login' ||
+      original.url === '/api/auth/register'
     ) {
       return Promise.reject(error)
     }

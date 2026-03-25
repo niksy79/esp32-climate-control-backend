@@ -4,6 +4,7 @@ import "net/http"
 
 var corsAllowedOrigins = map[string]bool{
 	"http://localhost:5173":         true,
+	"http://127.0.0.1:5173":        true,
 	"https://climate.gotocloud.xyz":     true,
 	"https://climate-app.gotocloud.xyz": true,
 }
