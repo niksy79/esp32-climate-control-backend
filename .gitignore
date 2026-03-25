@@ -13,6 +13,8 @@ vendor/
 
 # Claude AI context (may contain sensitive info)
 CLAUDE.md
+CLAUDE-api.md
+CLAUDE-web.md
 
 # IDE
 .vscode/

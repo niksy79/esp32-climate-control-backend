@@ -27,7 +27,7 @@ function DeviceCard({ device, deviceTypes, onClick }) {
   const isOffline = device.temperature === null || health === 2
   const isStale   = !isOffline && health === 1
   const compressorOn = device.deviceStates?.compressor ?? false
-  const fanOn = device.deviceStates?.fan_compressor ?? false
+  const fanOn = device.deviceStates?.extra_fan ?? false
   const lightOn = device.deviceStates?.light ?? false
   const alertActive = hasActiveError(device.errors)
   const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'

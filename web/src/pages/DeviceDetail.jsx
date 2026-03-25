@@ -86,7 +86,7 @@ const DAYS_OPTIONS = [1, 3, 7, 14, 31]
 // ── Tab: История ──────────────────────────────────────────
 function TabHistory({ current, status, history, days, setDays }) {
   const compressorOn = status?.device_states?.compressor ?? false
-  const fanOn = status?.device_states?.fan_compressor ?? false
+  const fanOn = status?.device_states?.extra_fan ?? false
   const lightOn = status?.device_states?.light ?? false
   const systemState = status?.system_status?.state ?? null
   const stateLabel = SYSTEM_STATE_LABELS[systemState] ?? 'Неизвестно'
