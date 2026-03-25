@@ -21,6 +21,9 @@ export const getHistory = (tenantId, deviceId, days = 1) =>
 export const getCompressorCycles = (tenantId, deviceId, days = 7) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/compressor-cycles`, { params: { days } })
 
+export const getErrors = (tenantId, deviceId) =>
+  client.get(`/api/tenants/${tenantId}/devices/${deviceId}/errors`)
+
 export const getSettings = (tenantId, deviceId) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/settings`)
 

@@ -663,6 +663,116 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Диагностика tab ──────────────────────────────────────── */
+.dd-diag-section-title {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dd-diag-section-title-errors {
+  margin-top: 32px;
+}
+
+.dd-diag-summary {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+}
+
+.dd-diag-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dd-diag-summary-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dd-diag-summary-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.dd-diag-work { color: #3b82f6; }
+.dd-diag-rest { color: #94a3b8; }
+
+/* Error list */
+.dd-no-errors { color: #4ade80; }
+
+.dd-error-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dd-error-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.dd-error-message {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+}
+
+.dd-error-time {
+  font-size: 0.75rem;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* Severity badges */
+.dd-sev-badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sev-info {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.sev-warning {
+  background: rgba(234, 179, 8, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
+.sev-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .dd-header,

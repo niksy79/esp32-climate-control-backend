@@ -30,7 +30,8 @@
       "Bash(git:*)",
       "Bash(npm create:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

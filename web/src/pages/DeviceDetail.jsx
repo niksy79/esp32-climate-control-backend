@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import {
   getCurrentReading, getDeviceStatus, getHistory,
   getSettings, saveSettings, switchMode, listAlertRules, createAlertRule, deleteAlertRule,
+  getCompressorCycles, getErrors,
 } from '../api/index'
 import {
   formatTemperature, formatHumidity, formatTimestamp,
@@ -25,17 +27,27 @@ function formatChartTime(ts) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function formatChartDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+}
+
 function hasActiveError(errors) {
   return Array.isArray(errors) && errors.some((e) => e.active)
 }
 
+const SEVERITY_LABELS  = ['Инфо', 'Предупреждение', 'Грешка']
+const SEVERITY_CLASSES = ['sev-info', 'sev-warning', 'sev-error']
+
 // ── Tabs ──────────────────────────────────────────────────
 function Tabs({ active, onChange }) {
   const tabs = [
-    { key: 'history',  label: 'История' },
-    { key: 'settings', label: 'Настройки' },
-    { key: 'alerts',   label: 'Алерти' },
-    { key: 'modes',    label: 'Режими' },
+    { key: 'history',     label: 'История' },
+    { key: 'settings',    label: 'Настройки' },
+    { key: 'alerts',      label: 'Алерти' },
+    { key: 'modes',       label: 'Режими' },
+    { key: 'diagnostics', label: 'Диагностика' },
   ]
   return (
     <div className="dd-tabs">
@@ -638,6 +650,92 @@ function TabModes({ activeMode, setActiveMode, tenantId, deviceId }) {
   )
 }
 
+// ── Tab: Диагностика ──────────────────────────────────────
+function TabDiagnostics({ cycles, errors }) {
+  const chartData = (cycles ?? []).map((c) => ({
+    date:      formatChartDate(c.created_at),
+    work_time: c.work_time,
+    rest_time: c.rest_time,
+  }))
+
+  const activeErrors = (errors ?? []).filter((e) => e.active)
+
+  const avgWork = chartData.length
+    ? Math.round(chartData.reduce((s, c) => s + c.work_time, 0) / chartData.length)
+    : 0
+  const avgRest = chartData.length
+    ? Math.round(chartData.reduce((s, c) => s + c.rest_time, 0) / chartData.length)
+    : 0
+
+  return (
+    <div className="dd-tab-content">
+
+      {/* ── Section 1: Compressor cycles ── */}
+      <h3 className="dd-diag-section-title">Компресор</h3>
+      {chartData.length === 0 ? (
+        <p className="dd-empty">Няма данни за компресорни цикли</p>
+      ) : (
+        <>
+          <div className="dd-chart-wrap">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
+                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} />
+                <YAxis
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  unit="s"
+                />
+                <Tooltip
+                  contentStyle={{ background: '#1e2130', border: '1px solid #2a2d3a', borderRadius: 8, fontSize: '0.8125rem' }}
+                  labelStyle={{ color: '#64748b', marginBottom: 4 }}
+                  formatter={(value, name) => [`${value}s`, name === 'work_time' ? 'Работа' : 'Почивка']}
+                />
+                <Legend
+                  formatter={(value) => value === 'work_time' ? 'Работа' : 'Почивка'}
+                  wrapperStyle={{ fontSize: '12px', color: '#94a3b8', paddingTop: '8px' }}
+                />
+                <Bar dataKey="work_time" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="rest_time" fill="#475569" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="dd-diag-summary">
+            <div className="dd-diag-summary-item">
+              <span className="dd-diag-summary-label">Средна работа</span>
+              <span className="dd-diag-summary-value dd-diag-work">{avgWork}s</span>
+            </div>
+            <div className="dd-diag-summary-item">
+              <span className="dd-diag-summary-label">Средна почивка</span>
+              <span className="dd-diag-summary-value dd-diag-rest">{avgRest}s</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Section 2: Active errors ── */}
+      <h3 className="dd-diag-section-title dd-diag-section-title-errors">Грешки</h3>
+      {activeErrors.length === 0 ? (
+        <p className="dd-empty dd-no-errors">Няма активни грешки</p>
+      ) : (
+        <ul className="dd-error-list">
+          {activeErrors.map((err, i) => (
+            <li key={i} className="dd-error-item">
+              <span className={`dd-sev-badge ${SEVERITY_CLASSES[err.severity] ?? 'sev-info'}`}>
+                {SEVERITY_LABELS[err.severity] ?? 'Инфо'}
+              </span>
+              <span className="dd-error-message">{err.message}</span>
+              <span className="dd-error-time">{relativeTime(err.timestamp)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────
 export default function DeviceDetail() {
   const { token } = useAuth()
@@ -653,6 +751,8 @@ export default function DeviceDetail() {
   const [settings, setSettings] = useState(null)
   const [rules, setRules] = useState([])
   const [activeMode, setActiveMode] = useState(null)
+  const [cycles, setCycles] = useState([])
+  const [errors, setErrors] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [activeTab, setActiveTab] = useState('history')
@@ -666,6 +766,8 @@ export default function DeviceDetail() {
         getHistory(tenantId, deviceId, 1),
         getSettings(tenantId, deviceId),
         listAlertRules(tenantId, deviceId),
+        getCompressorCycles(tenantId, deviceId, 7),
+        getErrors(tenantId, deviceId),
       ])
       if (results[0].status === 'fulfilled') setCurrent(results[0].value.data)
       if (results[1].status === 'fulfilled') {
@@ -676,6 +778,8 @@ export default function DeviceDetail() {
       if (results[2].status === 'fulfilled') setHistory(results[2].value.data?.readings ?? [])
       if (results[3].status === 'fulfilled') setSettings(results[3].value.data)
       if (results[4].status === 'fulfilled') setRules(results[4].value.data ?? [])
+      if (results[5].status === 'fulfilled') setCycles(results[5].value.data?.cycles ?? [])
+      if (results[6].status === 'fulfilled') setErrors(results[6].value.data ?? [])
       setFetchError('')
     } catch (err) {
       console.error('DeviceDetail fetchAll:', err)
@@ -761,6 +865,9 @@ export default function DeviceDetail() {
       )}
       {activeTab === 'modes' && (
         <TabModes activeMode={activeMode} setActiveMode={setActiveMode} tenantId={tenantId} deviceId={deviceId} />
+      )}
+      {activeTab === 'diagnostics' && (
+        <TabDiagnostics cycles={cycles} errors={errors} />
       )}
     </div>
   )
