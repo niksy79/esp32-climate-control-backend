@@ -99,6 +99,27 @@ func (c *Client) PublishConfig(tenantID, deviceID string, payload any) error {
 	return tok.Error()
 }
 
+// PublishLightCommand publishes a light control command to a specific tenant's device.
+// Topic: <prefix>/<tenantID>/<deviceID>/cmd/light  (QoS 1, not retained)
+// Omit state or mode by passing nil to exclude them from the payload.
+func (c *Client) PublishLightCommand(tenantID, deviceID string, state *bool, mode *string) error {
+	payload := map[string]interface{}{}
+	if state != nil {
+		payload["state"] = *state
+	}
+	if mode != nil {
+		payload["mode"] = *mode
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	topic := fmt.Sprintf("%s/%s/%s/cmd/light", c.topicPfx, tenantID, deviceID)
+	tok := c.paho.Publish(topic, 1, false, data)
+	tok.Wait()
+	return tok.Error()
+}
+
 // PublishCommand publishes a JSON command to a specific tenant's device.
 // Topic: <prefix>/<tenantID>/<deviceID>/cmd/<command>  (QoS 1, not retained)
 // Returns an error if the broker does not acknowledge within 5 seconds.
@@ -118,6 +139,24 @@ func (c *Client) PublishCommand(tenantID, deviceID, command string, payload any)
 // ---------------------------------------------------------------------------
 // internal
 // ---------------------------------------------------------------------------
+
+// mqttSettingsPayload matches the flat JSON published by the ESP32 firmware
+// on the climate/.../settings topic. Field names mirror the firmware's keys;
+// mix_interval and mix_duration are in minutes and are converted to seconds
+// before being stored.
+type mqttSettingsPayload struct {
+	TempTarget    float32 `json:"temp_target"`
+	TempOffset    float32 `json:"temp_offset"`
+	HumTarget     float32 `json:"hum_target"`
+	HumOffset     float32 `json:"hum_offset"`
+	FanSpeed      uint8   `json:"fan_speed"`
+	MixInterval   uint32  `json:"mix_interval"`
+	MixDuration   uint32  `json:"mix_duration"`
+	MixingEnabled bool    `json:"mixing_enabled"`
+	LightMode     int     `json:"light_mode"`
+	LightState    bool    `json:"light_state"`
+	ActiveMode    int     `json:"active_mode"`
+}
 
 func (c *Client) onConnect(cl paho.Client) {
 	log.Println("mqtt: connected, subscribing to wildcard topics")
@@ -179,10 +218,33 @@ func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
 		if c.h.OnSettings == nil {
 			return
 		}
-		var snap models.DeviceSnapshot
-		if err := json.Unmarshal(payload, &snap); err != nil {
+		var p mqttSettingsPayload
+		if err := json.Unmarshal(payload, &p); err != nil {
 			log.Printf("mqtt: decode settings/%s/%s: %v", tenantID, deviceID, err)
 			return
+		}
+		snap := models.DeviceSnapshot{
+			TenantID: tenantID,
+			DeviceID: deviceID,
+			TempSettings: models.TempSettings{
+				Target: p.TempTarget,
+				Offset: p.TempOffset,
+			},
+			HumiditySettings: models.HumiditySettings{
+				Target: p.HumTarget,
+				Offset: p.HumOffset,
+			},
+			FanSettings: models.FanSettings{
+				Speed:          p.FanSpeed,
+				MixingInterval: p.MixInterval * 60, // minutes → seconds
+				MixingDuration: p.MixDuration * 60, // minutes → seconds
+				MixingEnabled:  p.MixingEnabled,
+			},
+			LightSettings: models.LightSettings{
+				Mode:  models.LightMode(p.LightMode),
+				State: p.LightState,
+			},
+			ActiveMode: models.ModeType(p.ActiveMode),
 		}
 		c.h.OnSettings(tenantID, deviceID, snap)
 

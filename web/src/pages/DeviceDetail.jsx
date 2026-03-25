@@ -7,8 +7,8 @@ import {
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import {
-  getCurrentReading, getDeviceStatus, getHistory,
-  getSettings, saveSettings, switchMode, listAlertRules, createAlertRule, deleteAlertRule,
+  listDevices, getCurrentReading, getDeviceStatus, getHistory,
+  getSettings, saveSettings, switchMode, setLight, listAlertRules, createAlertRule, deleteAlertRule,
   getCompressorCycles, getErrors, getDeviceTypes,
   setDeviceType as apiSetDeviceType,
 } from '../api/index'
@@ -88,6 +88,7 @@ function TabHistory({ current, status, history, days, setDays }) {
   const compressorOn = status?.device_states?.compressor ?? false
   const fanOn = status?.device_states?.extra_fan ?? false
   const lightOn = status?.device_states?.light ?? false
+  const heatingOn = status?.device_states?.heating ?? false
   const systemState = status?.system_status?.state ?? null
   const stateLabel = SYSTEM_STATE_LABELS[systemState] ?? 'Неизвестно'
   const stateClass = SYSTEM_STATE_CLASSES[systemState] ?? ''
@@ -199,6 +200,12 @@ function TabHistory({ current, status, history, days, setDays }) {
           </span>
         </div>
         <div className="dd-stat">
+          <span className="dd-stat-label">Нагревател</span>
+          <span className={`relay-badge ${heatingOn ? 'relay-on' : 'relay-off'}`}>
+            {heatingOn ? 'ON' : 'OFF'}
+          </span>
+        </div>
+        <div className="dd-stat">
           <span className="dd-stat-label">Статус</span>
           <span className={`state-badge state-${stateClass}`}>{stateLabel}</span>
         </div>
@@ -239,6 +246,58 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
   const [typeSaving, setTypeSaving] = useState(false)
   const [typeMsg, setTypeMsg] = useState(null)
   const typeMsgTimer = useRef(null)
+
+  // Light local state (0=manual, 1=auto)
+  const [lightMode, setLightMode] = useState(settings?.light?.mode ?? 0)
+  const [lightState, setLightState] = useState(settings?.light?.state ?? false)
+  const [lightSaving, setLightSaving] = useState(false)
+  const [lightMsg, setLightMsg] = useState(null)
+  const lightMsgTimer = useRef(null)
+
+  // Sync light state when settings loads (initial value is null before fetch completes)
+  useEffect(() => {
+    if (settings?.light != null) {
+      setLightMode(settings.light.mode ?? 0)
+      setLightState(settings.light.state ?? false)
+    }
+  }, [settings])
+
+  async function handleLightMode(newMode) {
+    if (lightSaving) return
+    setLightSaving(true)
+    setLightMsg(null)
+    try {
+      await setLight(tenantId, deviceId, { mode: newMode })
+      setLightMode(newMode === 'manual' ? 0 : 1)
+      setLightMsg({ type: 'ok', text: 'Режимът е запазен' })
+      clearTimeout(lightMsgTimer.current)
+      lightMsgTimer.current = setTimeout(() => setLightMsg(null), 3000)
+    } catch (err) {
+      console.error('handleLightMode error:', err.response?.status, err.response?.data)
+      setLightMsg({ type: 'err', text: err.response?.data || 'Грешка' })
+    } finally {
+      setLightSaving(false)
+    }
+  }
+
+  async function handleLightToggle() {
+    if (lightSaving) return
+    const newState = !lightState
+    setLightSaving(true)
+    setLightMsg(null)
+    try {
+      await setLight(tenantId, deviceId, { state: newState })
+      setLightState(newState)
+      setLightMsg({ type: 'ok', text: newState ? 'Осветлението е включено' : 'Осветлението е изключено' })
+      clearTimeout(lightMsgTimer.current)
+      lightMsgTimer.current = setTimeout(() => setLightMsg(null), 3000)
+    } catch (err) {
+      console.error('handleLightToggle error:', err.response?.status, err.response?.data)
+      setLightMsg({ type: 'err', text: err.response?.data || 'Грешка' })
+    } finally {
+      setLightSaving(false)
+    }
+  }
 
   async function handleSaveType() {
     if (!selectedType) return
@@ -332,6 +391,54 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
           <button className="dd-save-btn" type="button" disabled={typeSaving || !selectedType} onClick={handleSaveType}>
             {typeSaving ? 'Запазване...' : 'Запази тип'}
           </button>
+        </div>
+      )}
+
+      {/* ── Light control (admin only) ── */}
+      {isAdmin && (
+        <div className="dd-device-type-section">
+          <h3 className="dd-form-title">Осветление</h3>
+          <div className="dd-settings-list">
+            <div className="dd-settings-row">
+              <span className="dd-settings-label">Режим</span>
+              <div className="dd-range-group" style={{ marginBottom: 0 }}>
+                <button
+                  type="button"
+                  className={`dd-range-btn${lightMode === 0 ? ' dd-range-btn-active' : ''}`}
+                  disabled={lightSaving}
+                  onClick={() => handleLightMode('manual')}
+                >
+                  Ръчен
+                </button>
+                <button
+                  type="button"
+                  className={`dd-range-btn${lightMode === 1 ? ' dd-range-btn-active' : ''}`}
+                  disabled={lightSaving}
+                  onClick={() => handleLightMode('auto')}
+                >
+                  Автоматичен
+                </button>
+              </div>
+            </div>
+            {lightMode === 0 && (
+              <div className="dd-settings-row">
+                <span className="dd-settings-label">Светлина</span>
+                <button
+                  type="button"
+                  className={`dd-light-toggle${lightState ? ' dd-light-toggle-on' : ' dd-light-toggle-off'}`}
+                  disabled={lightSaving}
+                  onClick={handleLightToggle}
+                >
+                  {lightState ? 'Включено' : 'Изключено'}
+                </button>
+              </div>
+            )}
+          </div>
+          {lightMsg && (
+            <p className={`dd-save-msg ${lightMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
+              {lightMsg.text}
+            </p>
+          )}
         </div>
       )}
 
@@ -737,17 +844,17 @@ function TabModes({ activeMode, setActiveMode, tenantId, deviceId }) {
 function TabDiagnostics({ cycles, errors }) {
   const chartData = (cycles ?? []).map((c) => ({
     date:      formatChartDate(c.created_at),
-    work_time: c.work_time,
-    rest_time: c.rest_time,
+    work_time: +(c.work_time / 60).toFixed(1),
+    rest_time: +(c.rest_time / 60).toFixed(1),
   }))
 
   const activeErrors = (errors ?? []).filter((e) => e.active)
 
   const avgWork = chartData.length
-    ? Math.round(chartData.reduce((s, c) => s + c.work_time, 0) / chartData.length)
+    ? +(chartData.reduce((s, c) => s + c.work_time, 0) / chartData.length).toFixed(1)
     : 0
   const avgRest = chartData.length
-    ? Math.round(chartData.reduce((s, c) => s + c.rest_time, 0) / chartData.length)
+    ? +(chartData.reduce((s, c) => s + c.rest_time, 0) / chartData.length).toFixed(1)
     : 0
 
   return (
@@ -768,12 +875,12 @@ function TabDiagnostics({ cycles, errors }) {
                   tick={{ fill: '#64748b', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
-                  unit="s"
+                  unit=" мин"
                 />
                 <Tooltip
                   contentStyle={{ background: '#1e2130', border: '1px solid #2a2d3a', borderRadius: 8, fontSize: '0.8125rem' }}
                   labelStyle={{ color: '#64748b', marginBottom: 4 }}
-                  formatter={(value, name) => [`${value}s`, name === 'work_time' ? 'Работа' : 'Почивка']}
+                  formatter={(value, name) => [`${value} мин`, name === 'work_time' ? 'Работа' : 'Почивка']}
                 />
                 <Legend
                   formatter={(value) => value === 'work_time' ? 'Работа' : 'Почивка'}
@@ -787,11 +894,11 @@ function TabDiagnostics({ cycles, errors }) {
           <div className="dd-diag-summary">
             <div className="dd-diag-summary-item">
               <span className="dd-diag-summary-label">Средна работа</span>
-              <span className="dd-diag-summary-value dd-diag-work">{avgWork}s</span>
+              <span className="dd-diag-summary-value dd-diag-work">{avgWork} мин</span>
             </div>
             <div className="dd-diag-summary-item">
               <span className="dd-diag-summary-label">Средна почивка</span>
-              <span className="dd-diag-summary-value dd-diag-rest">{avgRest}s</span>
+              <span className="dd-diag-summary-value dd-diag-rest">{avgRest} мин</span>
             </div>
           </div>
         </>
@@ -859,12 +966,12 @@ export default function DeviceDetail() {
       const results = await Promise.allSettled([
         getCurrentReading(tenantId, deviceId),
         getDeviceStatus(tenantId, deviceId),
-        getHistory(tenantId, deviceId, days),
         getSettings(tenantId, deviceId),
         listAlertRules(tenantId, deviceId),
         getCompressorCycles(tenantId, deviceId, 7),
         getErrors(tenantId, deviceId),
         getDeviceTypes(),
+        listDevices(tenantId),
       ])
       if (results[0].status === 'fulfilled') setCurrent(results[0].value.data)
       if (results[1].status === 'fulfilled') {
@@ -872,12 +979,15 @@ export default function DeviceDetail() {
         setStatus(s)
         if (s?.active_mode != null) setActiveMode(MODE_STRING_TO_INT[s.active_mode] ?? 0)
       }
-      if (results[2].status === 'fulfilled') setHistory(results[2].value.data?.readings ?? [])
-      if (results[3].status === 'fulfilled') setSettings(results[3].value.data)
-      if (results[4].status === 'fulfilled') setRules(results[4].value.data ?? [])
-      if (results[5].status === 'fulfilled') setCycles(results[5].value.data?.cycles ?? [])
-      if (results[6].status === 'fulfilled') setErrors(results[6].value.data ?? [])
-      if (results[7].status === 'fulfilled') setDeviceTypes(results[7].value.data ?? [])
+      if (results[2].status === 'fulfilled') setSettings(results[2].value.data)
+      if (results[3].status === 'fulfilled') setRules(results[3].value.data ?? [])
+      if (results[4].status === 'fulfilled') setCycles(results[4].value.data?.cycles ?? [])
+      if (results[5].status === 'fulfilled') setErrors(results[5].value.data ?? [])
+      if (results[6].status === 'fulfilled') setDeviceTypes(results[6].value.data ?? [])
+      if (results[7].status === 'fulfilled') {
+        const match = results[7].value.data?.find((d) => d.device_id === deviceId)
+        if (match?.device_type_id) setDeviceTypeId(match.device_type_id)
+      }
       setFetchError('')
     } catch (err) {
       console.error('DeviceDetail fetchAll:', err)

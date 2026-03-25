@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes } from '../api/index'
+import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight } from '../api/index'
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
 
@@ -22,13 +22,14 @@ function RelayBadge({ label, on }) {
   )
 }
 
-function DeviceCard({ device, deviceTypes, onClick }) {
+function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onClick }) {
   const health = device.health   // 0=Good, 1=Warning, 2=Error/Offline
   const isOffline = device.temperature === null || health === 2
   const isStale   = !isOffline && health === 1
   const compressorOn = device.deviceStates?.compressor ?? false
   const fanOn = device.deviceStates?.extra_fan ?? false
   const lightOn = device.deviceStates?.light ?? false
+  const heatingOn = device.deviceStates?.heating ?? false
   const alertActive = hasActiveError(device.errors)
   const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'
   const name = device.deviceName || device.deviceId
@@ -74,7 +75,15 @@ function DeviceCard({ device, deviceTypes, onClick }) {
       <div className="relay-badges">
         <RelayBadge label="Компресор" on={compressorOn} />
         <RelayBadge label="Вентилатор" on={fanOn} />
-        <RelayBadge label="Осветление" on={lightOn} />
+        <RelayBadge label="Нагревател" on={heatingOn} />
+        <button
+          className={`card-light-btn ${lightOn ? 'card-light-on' : 'card-light-off'}`}
+          disabled={!isAdmin}
+          title={!isAdmin ? undefined : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
+          onClick={(e) => { e.stopPropagation(); onLightToggle && onLightToggle() }}
+        >
+          {lightOn ? 'Светлина ON' : 'Светлина OFF'}
+        </button>
       </div>
 
       <div className="card-state">{stateLabel}</div>
@@ -93,6 +102,7 @@ export default function Dashboard() {
 
   const claims = token ? decodeToken(token) : null
   const tenantId = claims?.tenant_id ?? null
+  const isAdmin = claims?.role === 'admin'
 
   const [devices, setDevices] = useState([])
   const [deviceTypes, setDeviceTypes] = useState([])
@@ -203,6 +213,21 @@ export default function Dashboard() {
     )
   }, [lastMessage])
 
+  function handleLightToggle(deviceId, currentLightOn) {
+    const newState = !currentLightOn
+    setLight(tenantId, deviceId, { state: newState })
+      .then(() => {
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.deviceId === deviceId
+              ? { ...d, deviceStates: { ...d.deviceStates, light: newState } }
+              : d
+          )
+        )
+      })
+      .catch((err) => console.error('light toggle:', err.response?.status, err.response?.data))
+  }
+
   function handleLogout() {
     logout()
     navigate('/login')
@@ -241,6 +266,8 @@ export default function Dashboard() {
                 key={d.deviceId}
                 device={d}
                 deviceTypes={deviceTypes}
+                isAdmin={isAdmin}
+                onLightToggle={() => handleLightToggle(d.deviceId, d.deviceStates?.light ?? false)}
                 onClick={() => navigate(`/device/${d.deviceId}`)}
               />
             ))}

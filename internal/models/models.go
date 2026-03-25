@@ -316,7 +316,7 @@ type SystemStatus struct {
 	DHTOk        bool        `json:"dht_ok"`
 	RTCOk        bool        `json:"rtc_ok"`
 	UptimeSeconds uint32     `json:"uptime_seconds"`
-	RestartCount  uint32     `json:"restart_count"`
+	RestartCount  int32      `json:"restart_count"`
 	Timestamp    time.Time   `json:"timestamp"`
 }
 

@@ -31,6 +31,7 @@ import (
 type ConfigPublisher interface {
 	PublishConfig(tenantID, deviceID string, payload any) error
 	PublishCommand(tenantID, deviceID, command string, payload any) error
+	PublishLightCommand(tenantID, deviceID string, state *bool, mode *string) error
 }
 
 // Services bundles all manager dependencies.
@@ -88,6 +89,7 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleGetSettings).Methods(http.MethodGet)
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
 	protected.HandleFunc(base+"/{device_id}/mode", h.handleSwitchMode).Methods(http.MethodPost)
+	protected.HandleFunc(base+"/{device_id}/light", h.handleSetLight).Methods(http.MethodPost)
 
 	alertBase := base + "/{device_id}/alert-rules"
 	protected.HandleFunc(alertBase, h.handleListAlertRules).Methods(http.MethodGet)
@@ -329,6 +331,41 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 		log.Printf("api: save active mode %s/%s: %v", tenantID, deviceID, err)
 	}
 	h.svc.Control.SetActiveMode(tenantID, deviceID, models.ModeType(body.Mode))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) handleSetLight(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	var body struct {
+		State *bool   `json:"state"`
+		Mode  *string `json:"mode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if body.Mode != nil && *body.Mode != "manual" && *body.Mode != "auto" {
+		http.Error(w, "mode must be 'manual' or 'auto'", http.StatusBadRequest)
+		return
+	}
+	if h.svc.MQTT != nil {
+		if err := h.svc.MQTT.PublishLightCommand(tenantID, deviceID, body.State, body.Mode); err != nil {
+			log.Printf("api: mqtt publish light %s/%s: %v", tenantID, deviceID, err)
+		}
+	}
+	if body.Mode != nil {
+		modeInt := models.LightModeManual
+		if *body.Mode == "auto" {
+			modeInt = models.LightModeAuto
+		}
+		ls := models.LightSettings{Mode: modeInt}
+		if body.State != nil {
+			ls.State = *body.State
+		}
+		if err := h.svc.Storage.SaveLightSettings(r.Context(), tenantID, deviceID, ls); err != nil {
+			log.Printf("api: save light settings %s/%s: %v", tenantID, deviceID, err)
+		}
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
