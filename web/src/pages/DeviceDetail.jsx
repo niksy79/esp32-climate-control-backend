@@ -80,8 +80,10 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
+const DAYS_OPTIONS = [1, 3, 7, 14, 31]
+
 // ── Tab: История ──────────────────────────────────────────
-function TabHistory({ current, status, history }) {
+function TabHistory({ current, status, history, days, setDays }) {
   const compressorOn = status?.device_states?.compressor ?? false
   const fanOn = status?.device_states?.fan_compressor ?? false
   const lightOn = status?.device_states?.light ?? false
@@ -96,13 +98,30 @@ function TabHistory({ current, status, history }) {
     humidity: r.humidity ?? null,
   }))
 
+  const hideXLabels = days >= 7
+
   return (
     <div className="dd-tab-content">
+      <div className="dd-range-group">
+        {DAYS_OPTIONS.map((d) => (
+          <button
+            key={d}
+            className={`dd-range-btn${days === d ? ' dd-range-btn-active' : ''}`}
+            onClick={() => setDays(d)}
+          >
+            {d}д
+          </button>
+        ))}
+      </div>
       <div className="dd-chart-wrap">
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
-            <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} />
+            <XAxis
+              dataKey="time"
+              tick={hideXLabels ? false : { fill: '#64748b', fontSize: 11 }}
+              tickLine={false}
+            />
             <YAxis
               yAxisId="temp"
               orientation="left"
@@ -753,9 +772,20 @@ export default function DeviceDetail() {
   const [activeMode, setActiveMode] = useState(null)
   const [cycles, setCycles] = useState([])
   const [errors, setErrors] = useState([])
+  const [days, setDays] = useState(1)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [activeTab, setActiveTab] = useState('history')
+
+  const fetchHistory = useCallback(async (d) => {
+    if (!tenantId || !deviceId) return
+    try {
+      const res = await getHistory(tenantId, deviceId, d)
+      setHistory(res.data?.readings ?? [])
+    } catch (err) {
+      console.error('DeviceDetail fetchHistory:', err)
+    }
+  }, [tenantId, deviceId])
 
   const fetchAll = useCallback(async () => {
     if (!tenantId || !deviceId) return
@@ -763,7 +793,7 @@ export default function DeviceDetail() {
       const results = await Promise.allSettled([
         getCurrentReading(tenantId, deviceId),
         getDeviceStatus(tenantId, deviceId),
-        getHistory(tenantId, deviceId, 1),
+        getHistory(tenantId, deviceId, days),
         getSettings(tenantId, deviceId),
         listAlertRules(tenantId, deviceId),
         getCompressorCycles(tenantId, deviceId, 7),
@@ -787,7 +817,7 @@ export default function DeviceDetail() {
     } finally {
       setLoading(false)
     }
-  }, [tenantId, deviceId])
+  }, [tenantId, deviceId]) // intentionally excludes `days` — fetchHistory handles day changes
 
   const pollStatus = useCallback(async () => {
     if (!tenantId || !deviceId) return
@@ -815,6 +845,10 @@ export default function DeviceDetail() {
     const id = setInterval(pollStatus, 30_000)
     return () => clearInterval(id)
   }, [pollStatus])
+
+  useEffect(() => {
+    fetchHistory(days)
+  }, [fetchHistory, days])
 
   const alertActive = hasActiveError(status?.errors ?? [])
   const deviceName = status?.device_name || deviceId
@@ -855,7 +889,7 @@ export default function DeviceDetail() {
       <Tabs active={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'history' && (
-        <TabHistory current={current} status={status} history={history} />
+        <TabHistory current={current} status={status} history={history} days={days} setDays={setDays} />
       )}
       {activeTab === 'settings' && (
         <TabSettings settings={settings} tenantId={tenantId} deviceId={deviceId} />

@@ -152,6 +152,40 @@
   text-align: center;
 }
 
+/* ── Date range selector ──────────────────────────────────── */
+.dd-range-group {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  padding: 3px;
+  width: fit-content;
+}
+
+.dd-range-btn {
+  padding: 5px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.dd-range-btn:hover {
+  color: #94a3b8;
+}
+
+.dd-range-btn-active {
+  background: #2a2d3a;
+  color: #f1f5f9;
+}
+
 /* ── Chart ────────────────────────────────────────────────── */
 .dd-chart-wrap {
   background: #1a1d27;
