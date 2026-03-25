@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { listDevices, getCurrentReading, getDeviceStatus } from '../api/index'
+import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes } from '../api/index'
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
 
@@ -22,7 +22,7 @@ function RelayBadge({ label, on }) {
   )
 }
 
-function DeviceCard({ device, onClick }) {
+function DeviceCard({ device, deviceTypes, onClick }) {
   const health = device.health   // 0=Good, 1=Warning, 2=Error/Offline
   const isOffline = device.temperature === null || health === 2
   const isStale   = !isOffline && health === 1
@@ -33,6 +33,9 @@ function DeviceCard({ device, onClick }) {
   const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'
   const name = device.deviceName || device.deviceId
   const tempHigh = !isOffline && device.temperature > TEMP_THRESHOLD
+  const deviceType = device.deviceTypeId
+    ? deviceTypes?.find((t) => t.id === device.deviceTypeId)
+    : null
 
   return (
     <div
@@ -43,7 +46,10 @@ function DeviceCard({ device, onClick }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
       <div className="card-header">
-        <span className="card-title">{name}</span>
+        <div className="card-title-group">
+          <span className="card-title">{name}</span>
+          {deviceType && <span className="card-device-type">{deviceType.display_name}</span>}
+        </div>
         <span className={`alert-badge ${isOffline || alertActive ? 'alert-active' : 'alert-ok'}`}>
           {isOffline ? 'Офлайн' : alertActive ? 'Алерт' : 'OK'}
         </span>
@@ -89,6 +95,7 @@ export default function Dashboard() {
   const tenantId = claims?.tenant_id ?? null
 
   const [devices, setDevices] = useState([])
+  const [deviceTypes, setDeviceTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
 
@@ -99,11 +106,20 @@ export default function Dashboard() {
     if (!tenantId) return
 
     const doFetch = async () => {
-      const { data: deviceIds } = await listDevices(tenantId)
+      const [deviceIdsRes, deviceTypesRes] = await Promise.allSettled([
+        listDevices(tenantId),
+        getDeviceTypes(),
+      ])
+      if (deviceTypesRes.status === 'fulfilled') {
+        setDeviceTypes(deviceTypesRes.value.data ?? [])
+      }
+      if (deviceIdsRes.status !== 'fulfilled') throw deviceIdsRes.reason
+      const { data: deviceList } = deviceIdsRes.value  // [{device_id, device_type_id}]
       const enriched = await Promise.all(
-        deviceIds.map(async (deviceId) => {
+        deviceList.map(async ({ device_id: deviceId, device_type_id: deviceTypeId }) => {
           const base = {
             deviceId,
+            deviceTypeId: deviceTypeId || null,
             deviceName: null,
             temperature: null,
             humidity: null,
@@ -224,6 +240,7 @@ export default function Dashboard() {
               <DeviceCard
                 key={d.deviceId}
                 device={d}
+                deviceTypes={deviceTypes}
                 onClick={() => navigate(`/device/${d.deviceId}`)}
               />
             ))}

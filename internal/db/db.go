@@ -496,6 +496,29 @@ func (d *DB) UpsertSettings(ctx context.Context, tenantID, deviceID string,
 	return err
 }
 
+// LoadActiveModes returns a map of "tenantID/deviceID" → ModeType for every
+// device that has a row in device_settings. Used at startup to seed the
+// control manager so active_mode survives server restarts.
+func (d *DB) LoadActiveModes(ctx context.Context) (map[string]models.ModeType, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT tenant_id, device_id, active_mode
+		FROM device_settings`)
+	if err != nil {
+		return nil, fmt.Errorf("db: load active modes: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string]models.ModeType)
+	for rows.Next() {
+		var tenantID, deviceID string
+		var mode int
+		if err := rows.Scan(&tenantID, &deviceID, &mode); err != nil {
+			return nil, fmt.Errorf("db: scan active mode: %w", err)
+		}
+		result[tenantID+"/"+deviceID] = models.ModeType(mode)
+	}
+	return result, nil
+}
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -545,11 +568,11 @@ var ErrNoRows = pgx.ErrNoRows
 // Device listing
 // ---------------------------------------------------------------------------
 
-// ListDeviceIDs returns all device_ids belonging to a tenant, ordered
-// by the time they were last seen.
-func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]string, error) {
+// ListDeviceIDs returns all devices belonging to a tenant as DeviceSummary
+// (device_id + device_type_id), ordered by last_seen DESC.
+func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]models.DeviceSummary, error) {
 	rows, err := d.pool.Query(ctx, `
-		SELECT device_id
+		SELECT device_id, COALESCE(device_type_id, '') AS device_type_id
 		FROM devices
 		WHERE tenant_id = $1
 		ORDER BY last_seen DESC`,
@@ -560,15 +583,15 @@ func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]string, erro
 	}
 	defer rows.Close()
 
-	var ids []string
+	var devices []models.DeviceSummary
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var s models.DeviceSummary
+		if err := rows.Scan(&s.DeviceID, &s.DeviceTypeID); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		devices = append(devices, s)
 	}
-	return ids, rows.Err()
+	return devices, rows.Err()
 }
 
 // ---------------------------------------------------------------------------

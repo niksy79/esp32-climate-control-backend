@@ -329,15 +329,15 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleListDevices(w http.ResponseWriter, r *http.Request) {
 	tenantID := mux.Vars(r)["tenant_id"]
-	ids, err := h.svc.DB.ListDeviceIDs(r.Context(), tenantID)
+	devices, err := h.svc.DB.ListDeviceIDs(r.Context(), tenantID)
 	if err != nil {
 		http.Error(w, "failed to list devices: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if ids == nil {
-		ids = []string{}
+	if devices == nil {
+		devices = []models.DeviceSummary{}
 	}
-	jsonResp(w, ids)
+	jsonResp(w, devices)
 }
 
 // ---------------------------------------------------------------------------

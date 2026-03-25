@@ -24,6 +24,13 @@ export const getCompressorCycles = (tenantId, deviceId, days = 7) =>
 export const getErrors = (tenantId, deviceId) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/errors`)
 
+// Device types
+export const getDeviceTypes = () =>
+  client.get('/api/device-types')
+
+export const setDeviceType = (tenantId, deviceId, deviceTypeId) =>
+  client.post(`/api/tenants/${tenantId}/devices/${deviceId}/type`, { device_type_id: deviceTypeId })
+
 export const getSettings = (tenantId, deviceId) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/settings`)
 

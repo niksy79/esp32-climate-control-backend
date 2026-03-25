@@ -102,6 +102,15 @@ func main() {
 	datastoreMgr := datastore.New(database)
 	hub := ws.NewHub()
 
+	// Seed active modes from DB so they survive server restarts.
+	activeModes, err := database.LoadActiveModes(ctx)
+	if err != nil {
+		log.Printf("startup: load active modes: %v", err)
+	} else {
+		controlMgr.SeedActiveModes(activeModes)
+		log.Printf("startup: seeded active modes for %d devices", len(activeModes))
+	}
+
 	// -----------------------------------------------------------------
 	// MQTT – topics: climate/<tenant_id>/<device_id>/<subtopic>
 	// -----------------------------------------------------------------

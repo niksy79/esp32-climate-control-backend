@@ -158,6 +158,13 @@
   gap: 8px;
 }
 
+.card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .card-title {
   font-size: 0.9375rem;
   font-weight: 700;
@@ -166,6 +173,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.card-device-type {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #475569;
+  letter-spacing: 0.03em;
 }
 
 /* Alert badge (top-right of card) */

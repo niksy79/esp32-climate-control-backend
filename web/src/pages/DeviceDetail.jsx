@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext'
 import {
   getCurrentReading, getDeviceStatus, getHistory,
   getSettings, saveSettings, switchMode, listAlertRules, createAlertRule, deleteAlertRule,
-  getCompressorCycles, getErrors,
+  getCompressorCycles, getErrors, getDeviceTypes,
+  setDeviceType as apiSetDeviceType,
 } from '../api/index'
 import {
   formatTemperature, formatHumidity, formatTimestamp,
@@ -211,7 +212,7 @@ function TabHistory({ current, status, history, days, setDays }) {
 }
 
 // ── Tab: Настройки ────────────────────────────────────────
-function TabSettings({ settings, tenantId, deviceId }) {
+function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, setDeviceTypeId, isAdmin }) {
   const initialForm = useCallback(() => {
     const temp = settings?.temp ?? {}
     const hum  = settings?.humidity ?? {}
@@ -232,6 +233,29 @@ function TabSettings({ settings, tenantId, deviceId }) {
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null) // { type: 'ok'|'err', text }
   const successTimer = useRef(null)
+
+  // Device type local state
+  const [selectedType, setSelectedType] = useState(deviceTypeId ?? '')
+  const [typeSaving, setTypeSaving] = useState(false)
+  const [typeMsg, setTypeMsg] = useState(null)
+  const typeMsgTimer = useRef(null)
+
+  async function handleSaveType() {
+    if (!selectedType) return
+    setTypeSaving(true)
+    setTypeMsg(null)
+    try {
+      await apiSetDeviceType(tenantId, deviceId, selectedType)
+      setDeviceTypeId(selectedType)
+      setTypeMsg({ type: 'ok', text: 'Типът е запазен' })
+      clearTimeout(typeMsgTimer.current)
+      typeMsgTimer.current = setTimeout(() => setTypeMsg(null), 3000)
+    } catch (err) {
+      setTypeMsg({ type: 'err', text: err.response?.data?.error || 'Грешка при запазване' })
+    } finally {
+      setTypeSaving(false)
+    }
+  }
 
   // Re-sync form when settings load/change
   useEffect(() => {
@@ -269,8 +293,48 @@ function TabSettings({ settings, tenantId, deviceId }) {
 
   if (!settings) return <p className="dd-empty">Няма налични настройки.</p>
 
+  const currentTypeName = deviceTypes?.find((t) => t.id === (selectedType || deviceTypeId))?.display_name
+
   return (
     <div className="dd-tab-content">
+
+      {/* ── Device type selector (admin only) ── */}
+      {isAdmin && deviceTypes?.length > 0 && (
+        <div className="dd-device-type-section">
+          <h3 className="dd-form-title">Тип устройство</h3>
+          <div className="dd-settings-list">
+            <div className="dd-settings-row">
+              <label className="dd-settings-label" htmlFor="device_type_select">Тип</label>
+              <select
+                id="device_type_select"
+                className="dd-settings-input dd-select"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+              >
+                <option value="">Не е зададен</option>
+                {deviceTypes.map((dt) => (
+                  <option key={dt.id} value={dt.id}>{dt.display_name}</option>
+                ))}
+              </select>
+            </div>
+            {!isAdmin && (
+              <div className="dd-settings-row">
+                <span className="dd-settings-label">Текущ тип</span>
+                <span className="dd-settings-value">{currentTypeName ?? 'Не е зadadен'}</span>
+              </div>
+            )}
+          </div>
+          {typeMsg && (
+            <p className={`dd-save-msg ${typeMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
+              {typeMsg.text}
+            </p>
+          )}
+          <button className="dd-save-btn" type="button" disabled={typeSaving || !selectedType} onClick={handleSaveType}>
+            {typeSaving ? 'Запазване...' : 'Запази тип'}
+          </button>
+        </div>
+      )}
+
       <form className="dd-settings-form" onSubmit={handleSave}>
         <div className="dd-settings-list">
 
@@ -772,6 +836,8 @@ export default function DeviceDetail() {
   const [activeMode, setActiveMode] = useState(null)
   const [cycles, setCycles] = useState([])
   const [errors, setErrors] = useState([])
+  const [deviceTypes, setDeviceTypes] = useState([])
+  const [deviceTypeId, setDeviceTypeId] = useState('')
   const [days, setDays] = useState(1)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
@@ -798,6 +864,7 @@ export default function DeviceDetail() {
         listAlertRules(tenantId, deviceId),
         getCompressorCycles(tenantId, deviceId, 7),
         getErrors(tenantId, deviceId),
+        getDeviceTypes(),
       ])
       if (results[0].status === 'fulfilled') setCurrent(results[0].value.data)
       if (results[1].status === 'fulfilled') {
@@ -810,6 +877,7 @@ export default function DeviceDetail() {
       if (results[4].status === 'fulfilled') setRules(results[4].value.data ?? [])
       if (results[5].status === 'fulfilled') setCycles(results[5].value.data?.cycles ?? [])
       if (results[6].status === 'fulfilled') setErrors(results[6].value.data ?? [])
+      if (results[7].status === 'fulfilled') setDeviceTypes(results[7].value.data ?? [])
       setFetchError('')
     } catch (err) {
       console.error('DeviceDetail fetchAll:', err)
@@ -850,6 +918,7 @@ export default function DeviceDetail() {
     fetchHistory(days)
   }, [fetchHistory, days])
 
+  const isAdmin = claims?.role === 'admin'
   const alertActive = hasActiveError(status?.errors ?? [])
   const deviceName = status?.device_name || deviceId
   const health = current?.health ?? null   // 0=Good, 1=Warning, 2=Error/Offline
@@ -892,7 +961,15 @@ export default function DeviceDetail() {
         <TabHistory current={current} status={status} history={history} days={days} setDays={setDays} />
       )}
       {activeTab === 'settings' && (
-        <TabSettings settings={settings} tenantId={tenantId} deviceId={deviceId} />
+        <TabSettings
+          settings={settings}
+          tenantId={tenantId}
+          deviceId={deviceId}
+          deviceTypes={deviceTypes}
+          deviceTypeId={deviceTypeId}
+          setDeviceTypeId={setDeviceTypeId}
+          isAdmin={isAdmin}
+        />
       )}
       {activeTab === 'alerts' && (
         <TabAlerts rules={rules} setRules={setRules} tenantId={tenantId} deviceId={deviceId} />

@@ -408,6 +408,14 @@ type DeviceType struct {
 	UpdatedAt   time.Time           `json:"updated_at"`
 }
 
+// DeviceSummary is returned by the list-devices endpoint.
+// It includes the device_type_id so the frontend can display type labels
+// without a per-device follow-up request.
+type DeviceSummary struct {
+	DeviceID     string `json:"device_id"`
+	DeviceTypeID string `json:"device_type_id"`
+}
+
 // ---------------------------------------------------------------------------
 // Aggregated device snapshot (used for WebSocket broadcasts)
 // ---------------------------------------------------------------------------

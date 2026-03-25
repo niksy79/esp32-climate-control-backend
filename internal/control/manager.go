@@ -52,6 +52,21 @@ func (m *Manager) UpdateSnapshot(tenantID, deviceID string, snap models.DeviceSn
 	dc.LastUpdated = time.Now()
 }
 
+// SeedActiveModes bulk-sets active modes from a "tenantID/deviceID" → ModeType
+// map loaded from the database. Called once at startup before MQTT connects.
+func (m *Manager) SeedActiveModes(modes map[string]models.ModeType) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key, mode := range modes {
+		dc, ok := m.devices[key]
+		if !ok {
+			dc = &DeviceControl{}
+			m.devices[key] = dc
+		}
+		dc.ActiveMode = mode
+	}
+}
+
 // SetActiveMode updates only the active mode for a tenant/device pair.
 func (m *Manager) SetActiveMode(tenantID, deviceID string, mode models.ModeType) {
 	m.mu.Lock()
