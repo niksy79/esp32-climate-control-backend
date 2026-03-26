@@ -65,7 +65,13 @@ func New(cfg Config, h Handlers) (*Client, error) {
 		SetClientID(cfg.ClientID).
 		SetUsername(cfg.Username).
 		SetPassword(cfg.Password).
+		SetCleanSession(true).
+		SetKeepAlive(15 * time.Second).
 		SetAutoReconnect(true).
+		SetConnectRetry(true).
+		SetConnectRetryInterval(5 * time.Second).
+		SetMaxReconnectInterval(30 * time.Second).
+		SetDefaultPublishHandler(c.dispatch).
 		SetOnConnectHandler(c.onConnect).
 		SetConnectionLostHandler(func(_ paho.Client, err error) {
 			log.Printf("mqtt: connection lost: %v", err)
@@ -159,14 +165,16 @@ type mqttSettingsPayload struct {
 }
 
 func (c *Client) onConnect(cl paho.Client) {
-	log.Println("mqtt: connected, subscribing to wildcard topics")
-	// Two single-level wildcards: one for tenant_id, one for device_id.
+	// Subscribe before logging so any messages that arrive during the SUBACK
+	// round-trip are caught by the DefaultPublishHandler fallback.
 	topic := fmt.Sprintf("%s/+/+/#", c.topicPfx)
 	tok := cl.Subscribe(topic, 1, c.dispatch)
 	tok.Wait()
 	if err := tok.Error(); err != nil {
 		log.Printf("mqtt: subscribe %s: %v", topic, err)
+		return
 	}
+	log.Printf("mqtt: connected and subscribed to %s", topic)
 }
 
 func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
