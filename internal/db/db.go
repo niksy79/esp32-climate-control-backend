@@ -277,6 +277,22 @@ func (d *DB) UpsertDevice(ctx context.Context, dev models.DeviceIdentity) error 
 	return err
 }
 
+// UpdateDeviceName sets a user-assigned display name for a device.
+// Returns ErrNoRows if no matching (tenant_id, device_id) row exists.
+func (d *DB) UpdateDeviceName(ctx context.Context, tenantID, deviceID, name string) error {
+	tag, err := d.pool.Exec(ctx, `
+		UPDATE devices SET device_name = $1 WHERE tenant_id = $2 AND device_id = $3`,
+		name, tenantID, deviceID,
+	)
+	if err != nil {
+		return fmt.Errorf("db: update device name %s/%s: %w", tenantID, deviceID, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("db: update device name %s/%s: %w", tenantID, deviceID, pgx.ErrNoRows)
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Readings
 // ---------------------------------------------------------------------------
@@ -656,6 +672,31 @@ func (d *DB) LoadActiveModes(ctx context.Context) (map[string]models.ModeType, e
 	return result, nil
 }
 
+// GetLatestReadingPerDevice returns the single most recent reading for every
+// device across all tenants. Keyed by "tenantID/deviceID". Used at startup
+// to seed the sensor manager so /current responds immediately after restart.
+func (d *DB) GetLatestReadingPerDevice(ctx context.Context) (map[string]models.Reading, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT DISTINCT ON (tenant_id, device_id)
+		    tenant_id, device_id, temperature, humidity, fallback_time, recorded_at
+		FROM readings
+		ORDER BY tenant_id, device_id, recorded_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("db: get latest reading per device: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string]models.Reading)
+	for rows.Next() {
+		var tenantID, deviceID string
+		var r models.Reading
+		if err := rows.Scan(&tenantID, &deviceID, &r.Temperature, &r.Humidity, &r.FallbackTime, &r.Timestamp); err != nil {
+			return nil, fmt.Errorf("db: scan latest reading: %w", err)
+		}
+		result[tenantID+"/"+deviceID] = r
+	}
+	return result, nil
+}
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -807,6 +848,47 @@ func (d *DB) GetUserByEmailGlobal(ctx context.Context, email string) (models.Use
 	}
 	u.Role = models.Role(roleStr)
 	return u, nil
+}
+
+// ListUsersByTenant returns all users belonging to a tenant ordered by created_at.
+// PasswordHash is not populated.
+func (d *DB) ListUsersByTenant(ctx context.Context, tenantID string) ([]models.User, error) {
+	rows, err := d.pool.Query(ctx,
+		`SELECT id, tenant_id, email, role, created_at
+         FROM users WHERE tenant_id = $1 ORDER BY created_at ASC`,
+		tenantID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("db: list users %s: %w", tenantID, err)
+	}
+	defer rows.Close()
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		var roleStr string
+		if err := rows.Scan(&u.ID, &u.TenantID, &u.Email, &roleStr, &u.CreatedAt); err != nil {
+			return nil, fmt.Errorf("db: list users scan %s: %w", tenantID, err)
+		}
+		u.Role = models.Role(roleStr)
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// DeleteUser removes a user by (tenantID, userID).
+// Returns ErrNoRows if the user does not exist in the tenant.
+func (d *DB) DeleteUser(ctx context.Context, tenantID, userID string) error {
+	tag, err := d.pool.Exec(ctx,
+		`DELETE FROM users WHERE tenant_id = $1 AND id = $2`,
+		tenantID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("db: delete user %s/%s: %w", tenantID, userID, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRows
+	}
+	return nil
 }
 
 // ErrNoRows is re-exported so callers can check for missing rows without

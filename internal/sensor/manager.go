@@ -4,6 +4,7 @@
 package sensor
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -105,6 +106,31 @@ func (m *Manager) IsSensorOperational(tenantID, deviceID string) bool {
 		return false
 	}
 	return ds.consecutiveErrs < 3 && time.Since(ds.latest.Timestamp) < errorThresholdSec*time.Second
+}
+
+// SeedFromDB bulk-populates in-memory state from DB readings loaded at startup.
+// keys are "tenantID/deviceID" (same format as LoadActiveModes). The DB
+// recorded_at timestamp is preserved so GetLatest computes true staleness;
+// calling UpdateReading would overwrite it with time.Now() and mask stale devices.
+// Called once before MQTT connects; live updates continue via UpdateReading.
+func (m *Manager) SeedFromDB(readings map[string]models.Reading) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key, r := range readings {
+		parts := strings.SplitN(key, "/", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		m.devices[key] = &deviceState{
+			latest: models.SensorReading{
+				Temperature:  r.Temperature,
+				Humidity:     r.Humidity,
+				Timestamp:    r.Timestamp,
+				FallbackTime: r.FallbackTime,
+				Health:       healthFromReading(r),
+			},
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------

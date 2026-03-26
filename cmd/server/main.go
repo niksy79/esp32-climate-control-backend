@@ -120,6 +120,16 @@ func main() {
 		log.Printf("startup: seeded active modes for %d devices", len(activeModes))
 	}
 
+	// Seed sensor manager from DB so /current returns data immediately after
+	// restart instead of 404 until the first MQTT message arrives.
+	latestReadings, err := database.GetLatestReadingPerDevice(ctx)
+	if err != nil {
+		log.Printf("startup: load latest readings: %v", err)
+	} else {
+		sensorMgr.SeedFromDB(latestReadings)
+		log.Printf("startup: seeded sensor readings for %d devices", len(latestReadings))
+	}
+
 	// -----------------------------------------------------------------
 	// MQTT – topics: climate/<tenant_id>/<device_id>/<subtopic>
 	// -----------------------------------------------------------------
