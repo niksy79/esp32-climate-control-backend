@@ -103,6 +103,7 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleUpdateAlertRule).Methods(http.MethodPut)
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
 
+	protected.HandleFunc(base+"/{device_id}", h.handleDeleteDevice).Methods(http.MethodDelete)
 	protected.HandleFunc(base+"/{device_id}/type", h.handleSetDeviceType).Methods(http.MethodPost)
 	protected.HandleFunc(base+"/{device_id}/name", h.handleUpdateDeviceName).Methods(http.MethodPatch)
 	protected.HandleFunc(base+"/{device_id}/logs", h.handleGetDeviceLogs).Methods(http.MethodGet)
@@ -861,6 +862,21 @@ func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
 		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) handleDeleteDevice(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	err := h.svc.DB.DeleteDevice(r.Context(), tenantID, deviceID)
+	if err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("api: delete device %s/%s: %v", tenantID, deviceID, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

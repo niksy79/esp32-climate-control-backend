@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight } from '../api/index'
+import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight, deleteDevice } from '../api/index'
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
 
@@ -22,7 +22,7 @@ function RelayBadge({ label, on }) {
   )
 }
 
-function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onClick }) {
+function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onClick }) {
   const health = device.health   // 0=Good, 1=Warning, 2=Error/Offline
   const isOffline = device.temperature === null || health === 2
   const isStale   = !isOffline && health === 1
@@ -104,6 +104,20 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onClick }) {
       <div className="card-footer">
         {relativeTime(device.timestamp)}
         {isStale && <span className="stale-indicator">· Стар сигнал</span>}
+        {isAdmin && (
+          <button
+            className="card-delete-btn"
+            title="Изтрий устройство"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (window.confirm(`Изтрий устройство "${device.deviceName || device.deviceId}"?`)) {
+                onDelete && onDelete()
+              }
+            }}
+          >
+            🗑
+          </button>
+        )}
       </div>
     </div>
   )
@@ -289,6 +303,10 @@ export default function Dashboard() {
                 deviceTypes={deviceTypes}
                 isAdmin={isAdmin}
                 onLightToggle={() => handleLightToggle(d.deviceId, d.deviceStates?.light ?? false)}
+                onDelete={async () => {
+                  await deleteDevice(tenantId, d.deviceId)
+                  setDevices(prev => prev.filter(x => x.deviceId !== d.deviceId))
+                }}
                 onClick={() => navigate(`/device/${d.deviceId}`)}
               />
             ))}

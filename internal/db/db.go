@@ -57,8 +57,10 @@ CREATE TABLE IF NOT EXISTS devices (
     ip_address  TEXT NOT NULL DEFAULT '',
     wifi_state  INTEGER NOT NULL DEFAULT 0,
     last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ,
     PRIMARY KEY (tenant_id, device_id)
 );
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS readings (
     id            BIGSERIAL PRIMARY KEY,
@@ -905,7 +907,7 @@ func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]models.Devic
 	rows, err := d.pool.Query(ctx, `
 		SELECT device_id, COALESCE(device_type_id, '') AS device_type_id
 		FROM devices
-		WHERE tenant_id = $1
+		WHERE tenant_id = $1 AND deleted_at IS NULL
 		ORDER BY last_seen DESC`,
 		tenantID,
 	)
@@ -923,6 +925,22 @@ func (d *DB) ListDeviceIDs(ctx context.Context, tenantID string) ([]models.Devic
 		devices = append(devices, s)
 	}
 	return devices, rows.Err()
+}
+
+// DeleteDevice soft-deletes a device by setting deleted_at.
+func (d *DB) DeleteDevice(ctx context.Context, tenantID, deviceID string) error {
+	tag, err := d.pool.Exec(ctx, `
+		UPDATE devices SET deleted_at = NOW()
+		WHERE tenant_id = $1 AND device_id = $2 AND deleted_at IS NULL`,
+		tenantID, deviceID,
+	)
+	if err != nil {
+		return fmt.Errorf("db: delete device %s/%s: %w", tenantID, deviceID, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRows
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

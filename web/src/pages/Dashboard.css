@@ -334,6 +334,23 @@
   font-size: 0.6875rem;
   color: #334155;
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-delete-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  opacity: 0.4;
+  padding: 0 2px;
+  line-height: 1;
+}
+.card-delete-btn:hover {
+  opacity: 1;
 }
 
 /* ── Light toggle button ─────────────────────────────────── */

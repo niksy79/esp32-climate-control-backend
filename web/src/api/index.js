@@ -47,6 +47,9 @@ export const setDeviceType = (tenantId, deviceId, deviceTypeId) =>
 export const updateDeviceName = (tenantId, deviceId, name) =>
   client.patch(`/api/tenants/${tenantId}/devices/${deviceId}/name`, { device_name: name })
 
+export const deleteDevice = (tenantId, deviceId) =>
+  client.delete(`/api/tenants/${tenantId}/devices/${deviceId}`)
+
 export const getDeviceLogs = (tenantId, deviceId, lines = 100) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/logs`, { params: { lines } })
 
