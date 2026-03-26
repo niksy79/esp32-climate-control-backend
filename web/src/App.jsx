@@ -6,6 +6,7 @@ import DeviceDetail from './pages/DeviceDetail'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
+import Users from './pages/Users'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -45,6 +46,14 @@ export default function App() {
             element={
               <PrivateRoute>
                 <Profile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <PrivateRoute>
+                <Users />
               </PrivateRoute>
             }
           />

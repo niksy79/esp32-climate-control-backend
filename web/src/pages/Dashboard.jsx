@@ -30,13 +30,28 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onClick }) {
   const fanOn = device.deviceStates?.extra_fan ?? false
   const lightOn = device.deviceStates?.light ?? false
   const heatingOn = device.deviceStates?.heating ?? false
-  const alertActive = hasActiveError(device.errors)
+  const hasErrors = hasActiveError(device.errors)
   const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'
   const name = device.deviceName || device.deviceId
   const tempHigh = !isOffline && device.temperature > TEMP_THRESHOLD
   const deviceType = device.deviceTypeId
     ? deviceTypes?.find((t) => t.id === device.deviceTypeId)
     : null
+
+  let badgeClass, badgeLabel
+  if (isOffline) {
+    badgeClass = 'alert-active'
+    badgeLabel = 'Офлайн'
+  } else if (device.alertFiring) {
+    badgeClass = 'alert-active'
+    badgeLabel = 'Алерт'
+  } else if (hasErrors) {
+    badgeClass = 'alert-warning'
+    badgeLabel = 'Грешка'
+  } else {
+    badgeClass = 'alert-ok'
+    badgeLabel = 'OK'
+  }
 
   return (
     <div
@@ -51,9 +66,7 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onClick }) {
           <span className="card-title">{name}</span>
           {deviceType && <span className="card-device-type">{deviceType.display_name}</span>}
         </div>
-        <span className={`alert-badge ${isOffline || alertActive ? 'alert-active' : 'alert-ok'}`}>
-          {isOffline ? 'Офлайн' : alertActive ? 'Алерт' : 'OK'}
-        </span>
+        <span className={`alert-badge ${badgeClass}`}>{badgeLabel}</span>
       </div>
 
       <div className="card-readings">
@@ -138,6 +151,7 @@ export default function Dashboard() {
             deviceStates: null,
             systemState: null,
             errors: [],
+            alertFiring: false,
           }
           try {
             const [currentRes, statusRes] = await Promise.allSettled([
@@ -156,6 +170,7 @@ export default function Dashboard() {
               deviceStates: status?.device_states ?? null,
               systemState: status?.system_status?.state ?? null,
               errors: status?.errors ?? [],
+              alertFiring: status?.alert_firing ?? false,
             }
           } catch (err) {
             console.error(`fetchAll: device ${deviceId}:`, err)
@@ -246,6 +261,9 @@ export default function Dashboard() {
           </span>
         </div>
         <div className="header-actions">
+          {isAdmin && (
+            <button className="profile-btn" onClick={() => navigate('/users')}>Потребители</button>
+          )}
           <button className="profile-btn" onClick={() => navigate('/profile')}>Профил</button>
           <button className="logout-btn" onClick={handleLogout}>Изход</button>
         </div>

@@ -11,6 +11,7 @@ import {
   getSettings, saveSettings, switchMode, setLight, listAlertRules, createAlertRule, deleteAlertRule,
   getCompressorCycles, getErrors, getDeviceTypes,
   setDeviceType as apiSetDeviceType,
+  updateDeviceName, getDeviceLogs,
 } from '../api/index'
 import {
   formatTemperature, formatHumidity, formatTimestamp,
@@ -49,6 +50,7 @@ function Tabs({ active, onChange }) {
     { key: 'alerts',      label: 'Алерти' },
     { key: 'modes',       label: 'Режими' },
     { key: 'diagnostics', label: 'Диагностика' },
+    { key: 'logs',        label: 'Логове' },
   ]
   return (
     <div className="dd-tabs">
@@ -443,10 +445,12 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
       )}
 
       <form className="dd-settings-form" onSubmit={handleSave}>
-        <div className="dd-settings-list">
 
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="temp_target">Target температура (°C)</label>
+        {/* ── Temperature card ── */}
+        <div className="dd-settings-card dd-settings-card--temp">
+          <div className="dd-settings-card-title">🌡️ Температура</div>
+          <div className="dd-settings-grid">
+            <label className="dd-settings-label" htmlFor="temp_target">Target (°C)</label>
             <input
               id="temp_target"
               className="dd-settings-input"
@@ -454,10 +458,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               value={form.temp_target}
               onChange={(e) => setField('temp_target', e.target.value)}
             />
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="temp_offset">Офсет температура (°C)</label>
+            <label className="dd-settings-label" htmlFor="temp_offset">Офсет (°C)</label>
             <input
               id="temp_offset"
               className="dd-settings-input"
@@ -466,9 +467,13 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               onChange={(e) => setField('temp_offset', e.target.value)}
             />
           </div>
+        </div>
 
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="hum_target">Target влажност (%)</label>
+        {/* ── Humidity card ── */}
+        <div className="dd-settings-card dd-settings-card--hum">
+          <div className="dd-settings-card-title">💧 Влажност</div>
+          <div className="dd-settings-grid">
+            <label className="dd-settings-label" htmlFor="hum_target">Target (%)</label>
             <input
               id="hum_target"
               className="dd-settings-input"
@@ -476,10 +481,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               value={form.hum_target}
               onChange={(e) => setField('hum_target', e.target.value)}
             />
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="hum_offset">Офсет влажност (%)</label>
+            <label className="dd-settings-label" htmlFor="hum_offset">Офсет (%)</label>
             <input
               id="hum_offset"
               className="dd-settings-input"
@@ -488,9 +490,13 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               onChange={(e) => setField('hum_offset', e.target.value)}
             />
           </div>
+        </div>
 
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="fan_speed">Вентилатор скорост (%)</label>
+        {/* ── Fan card ── */}
+        <div className="dd-settings-card dd-settings-card--fan">
+          <div className="dd-settings-card-title">🌀 Вентилатор</div>
+          <div className="dd-settings-grid">
+            <label className="dd-settings-label" htmlFor="fan_speed">Скорост (%)</label>
             <input
               id="fan_speed"
               className="dd-settings-input"
@@ -498,9 +504,6 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               value={form.fan_speed}
               onChange={(e) => setField('fan_speed', e.target.value)}
             />
-          </div>
-
-          <div className="dd-settings-row">
             <label className="dd-settings-label" htmlFor="mixing_enabled">Миксиране</label>
             <label className="dd-toggle">
               <input
@@ -516,30 +519,27 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                 {form.mixing_enabled ? 'включено' : 'изключено'}
               </span>
             </label>
+            {form.mixing_enabled && (
+              <>
+                <label className="dd-settings-label" htmlFor="mixing_interval">Интервал (мин)</label>
+                <input
+                  id="mixing_interval"
+                  className="dd-settings-input"
+                  type="number" step="1" min="1"
+                  value={form.mixing_interval}
+                  onChange={(e) => setField('mixing_interval', e.target.value)}
+                />
+                <label className="dd-settings-label" htmlFor="mixing_duration">Продължителност (мин)</label>
+                <input
+                  id="mixing_duration"
+                  className="dd-settings-input"
+                  type="number" step="1" min="1"
+                  value={form.mixing_duration}
+                  onChange={(e) => setField('mixing_duration', e.target.value)}
+                />
+              </>
+            )}
           </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="mixing_interval">Интервал миксиране (мин)</label>
-            <input
-              id="mixing_interval"
-              className="dd-settings-input"
-              type="number" step="1" min="1"
-              value={form.mixing_interval}
-              onChange={(e) => setField('mixing_interval', e.target.value)}
-            />
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="mixing_duration">Продължителност миксиране (мин)</label>
-            <input
-              id="mixing_duration"
-              className="dd-settings-input"
-              type="number" step="1" min="1"
-              value={form.mixing_duration}
-              onChange={(e) => setField('mixing_duration', e.target.value)}
-            />
-          </div>
-
         </div>
 
         {saveMsg && (
@@ -557,15 +557,14 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 }
 
 // ── Tab: Алерти ───────────────────────────────────────────
-const OPERATOR_LABELS = { gt: '> (по-голямо)', lt: '< (по-малко)', gte: '>= (по-голямо или равно)', lte: '<= (по-малко или равно)' }
-const OPERATOR_SHORT  = { gt: '>', lt: '<', gte: '≥', lte: '≤' }
-const METRIC_LABELS   = { temperature: 'Температура', humidity: 'Влажност' }
+const OPERATOR_SENTENCE = { gt: 'по-висока от', lt: 'по-ниска от', gte: 'равна или по-висока от', lte: 'равна или по-ниска от' }
+const METRIC_ICONS      = { temperature: '🌡️', humidity: '💧' }
+const METRIC_NAMES      = { temperature: 'Температура', humidity: 'Влажност' }
 
 const EMPTY_RULE = {
   metric: 'temperature',
   operator: 'gt',
   threshold: '',
-  channel: 'email',
   recipient: '',
   cooldown_minutes: 15,
   enabled: true,
@@ -590,7 +589,7 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
         metric:           form.metric,
         operator:         form.operator,
         threshold:        parseFloat(form.threshold),
-        channel:          form.channel,
+        channel:          'email',
         recipient:        form.recipient,
         enabled:          form.enabled,
         cooldown_minutes: parseInt(form.cooldown_minutes, 10),
@@ -598,7 +597,7 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
       const { data } = await listAlertRules(tenantId, deviceId)
       setRules(data ?? [])
       setForm({ ...EMPTY_RULE })
-      setAddMsg({ type: 'ok', text: 'Правилото е добавено' })
+      setAddMsg({ type: 'ok', text: 'Известието е добавено' })
       clearTimeout(addTimer.current)
       addTimer.current = setTimeout(() => setAddMsg(null), 3000)
     } catch (err) {
@@ -618,70 +617,94 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
     }
   }
 
+  const unit = form.metric === 'temperature' ? '°C' : '%'
+
   return (
     <div className="dd-tab-content">
 
       {/* ── Create form ── */}
       <form className="dd-alert-form" onSubmit={handleAdd}>
-        <h3 className="dd-form-title">Ново правило</h3>
+        <div className="dd-settings-card">
+          <div className="dd-settings-card-title">🔔 Ново известие</div>
 
-        <div className="dd-settings-list">
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_metric">Метрика</label>
-            <select id="al_metric" className="dd-settings-input dd-select"
-              value={form.metric} onChange={(e) => setField('metric', e.target.value)}>
-              <option value="temperature">Температура</option>
-              <option value="humidity">Влажност</option>
-            </select>
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_operator">Оператор</label>
-            <select id="al_operator" className="dd-settings-input dd-select"
-              value={form.operator} onChange={(e) => setField('operator', e.target.value)}>
-              {Object.entries(OPERATOR_LABELS).map(([v, label]) => (
-                <option key={v} value={v}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_threshold">Праг</label>
-            <input id="al_threshold" className="dd-settings-input"
-              type="number" step="0.1" required
-              value={form.threshold} onChange={(e) => setField('threshold', e.target.value)} />
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_channel">Канал</label>
-            <select id="al_channel" className="dd-settings-input dd-select"
-              value={form.channel} onChange={(e) => setField('channel', e.target.value)}>
-              <option value="email">Имейл</option>
-            </select>
-          </div>
-
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_recipient">Получател</label>
-            <input id="al_recipient" className="dd-settings-input dd-input-wide"
+          {/* Line 1: Изпрати имейл до [email] */}
+          <div className="dd-alert-line">
+            <span className="dd-alert-prose">Изпрати имейл до</span>
+            <input
+              id="al_recipient"
+              className="dd-settings-input dd-alert-email-input"
               type="email" required placeholder="user@example.com"
-              value={form.recipient} onChange={(e) => setField('recipient', e.target.value)} />
+              value={form.recipient}
+              onChange={(e) => setField('recipient', e.target.value)}
+            />
           </div>
 
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_cooldown">Cooldown (мин)</label>
-            <input id="al_cooldown" className="dd-settings-input"
+          {/* Line 2: когато [метрика] е [оператор] */}
+          <div className="dd-alert-line">
+            <span className="dd-alert-prose">когато</span>
+            <select
+              id="al_metric"
+              className="dd-settings-input dd-select dd-alert-select"
+              value={form.metric}
+              onChange={(e) => setField('metric', e.target.value)}
+            >
+              <option value="temperature">температурата</option>
+              <option value="humidity">влажността</option>
+            </select>
+            <span className="dd-alert-prose">е</span>
+            <select
+              id="al_operator"
+              className="dd-settings-input dd-select dd-alert-select"
+              value={form.operator}
+              onChange={(e) => setField('operator', e.target.value)}
+            >
+              <option value="gt">по-висока от</option>
+              <option value="lt">по-ниска от</option>
+              <option value="gte">равна или по-висока от</option>
+              <option value="lte">равна или по-ниска от</option>
+            </select>
+          </div>
+
+          {/* Line 3: [threshold] °C/% */}
+          <div className="dd-alert-line">
+            <input
+              id="al_threshold"
+              className="dd-settings-input dd-alert-threshold"
+              type="number" step="0.1" required
+              value={form.threshold}
+              onChange={(e) => setField('threshold', e.target.value)}
+            />
+            <span className="dd-alert-unit">{unit}</span>
+          </div>
+
+          {/* Line 4: Не изпращай повторно в рамките на [n] минути */}
+          <div className="dd-alert-line">
+            <span className="dd-alert-prose">Не изпращай повторно в рамките на</span>
+            <input
+              id="al_cooldown"
+              className="dd-settings-input dd-alert-number"
               type="number" step="1" min="1"
-              value={form.cooldown_minutes} onChange={(e) => setField('cooldown_minutes', e.target.value)} />
+              value={form.cooldown_minutes}
+              onChange={(e) => setField('cooldown_minutes', e.target.value)}
+            />
+            <span className="dd-alert-prose">минути</span>
           </div>
 
-          <div className="dd-settings-row">
-            <label className="dd-settings-label" htmlFor="al_enabled">Активно</label>
+          {/* Line 5: toggle + submit */}
+          <div className="dd-alert-line dd-alert-line--footer">
             <label className="dd-toggle">
-              <input id="al_enabled" type="checkbox"
-                checked={form.enabled} onChange={(e) => setField('enabled', e.target.checked)} />
+              <input
+                id="al_enabled"
+                type="checkbox"
+                checked={form.enabled}
+                onChange={(e) => setField('enabled', e.target.checked)}
+              />
               <span className="dd-toggle-track"><span className="dd-toggle-thumb" /></span>
-              <span className="dd-toggle-label">{form.enabled ? 'включено' : 'изключено'}</span>
+              <span className="dd-toggle-label">Активно</span>
             </label>
+            <button className="dd-save-btn dd-alert-add-btn" type="submit" disabled={adding}>
+              {adding ? 'Добавяне...' : 'Добави известие'}
+            </button>
           </div>
         </div>
 
@@ -690,36 +713,34 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
             {addMsg.text}
           </p>
         )}
-
-        <button className="dd-save-btn" type="submit" disabled={adding}>
-          {adding ? 'Добавяне...' : 'Добави правило'}
-        </button>
       </form>
 
       {/* ── Rules list ── */}
       {rules.length === 0 ? (
-        <p className="dd-empty">Няма настроени алерти.</p>
+        <p className="dd-empty">Няма настроени известия.</p>
       ) : (
         <ul className="dd-alert-list">
           {rules.map((rule) => (
             <li key={rule.id} className="dd-alert-item">
-              <div className="dd-alert-main">
+              <div className="dd-alert-item-top">
                 <span className="dd-alert-condition">
-                  {METRIC_LABELS[rule.metric] ?? rule.metric}
-                  {' '}{OPERATOR_SHORT[rule.operator] ?? rule.operator}
-                  {' '}{rule.threshold}
-                  {rule.metric === 'temperature' ? ' °C' : ' %'}
+                  {METRIC_ICONS[rule.metric]}{' '}
+                  {METRIC_NAMES[rule.metric] ?? rule.metric}{' '}
+                  {OPERATOR_SENTENCE[rule.operator] ?? rule.operator}{' '}
+                  {rule.threshold}{rule.metric === 'temperature' ? '°C' : '%'}
+                  {' → '}{rule.recipient}
                 </span>
-                <span className="dd-alert-channel">{rule.channel} → {rule.recipient}</span>
+                <div className="dd-alert-item-actions">
+                  <span className={`dd-alert-status ${rule.enabled ? 'alert-enabled' : 'alert-disabled'}`}>
+                    {rule.enabled ? 'активен' : 'неактивен'}
+                  </span>
+                  <button className="dd-delete-btn" type="button" onClick={() => handleDelete(rule)}>
+                    Изтрий
+                  </button>
+                </div>
               </div>
-              <div className="dd-alert-meta">
-                <span className="dd-alert-cooldown">cooldown {rule.cooldown_minutes} мин</span>
-                <span className={`dd-alert-status ${rule.enabled ? 'alert-enabled' : 'alert-disabled'}`}>
-                  {rule.enabled ? 'активен' : 'неактивен'}
-                </span>
-                <button className="dd-delete-btn" type="button" onClick={() => handleDelete(rule)}>
-                  Изтрий
-                </button>
+              <div className="dd-alert-item-bottom">
+                <span className="dd-alert-cooldown">Cooldown: {rule.cooldown_minutes} мин</span>
               </div>
             </li>
           ))}
@@ -926,6 +947,78 @@ function TabDiagnostics({ cycles, errors }) {
   )
 }
 
+// ── Tab: Логове ───────────────────────────────────────────
+const LOGS_LINES_OPTIONS = [100, 200, 500]
+
+function TabLogs({ tenantId, deviceId }) {
+  const [lines, setLines] = useState(100)
+  const [logLines, setLogLines] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [fetchErr, setFetchErr] = useState('')
+  const logsEndRef = useRef(null)
+
+  const load = useCallback(async (n) => {
+    setLoading(true)
+    setFetchErr('')
+    try {
+      const res = await getDeviceLogs(tenantId, deviceId, n)
+      setLogLines(res.data.lines ?? [])
+    } catch {
+      setFetchErr('Грешка при зареждане на логовете')
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId, deviceId])
+
+  useEffect(() => { load(lines) }, [load, lines])
+
+  useEffect(() => {
+    if (!loading) logsEndRef.current?.scrollIntoView({ behavior: 'auto' })
+  }, [logLines, loading])
+
+  const handleLinesChange = (n) => {
+    setLines(n)
+  }
+
+  return (
+    <div className="dd-tab-content">
+      <div className="dd-logs-toolbar">
+        <div className="dd-logs-lines-group">
+          {LOGS_LINES_OPTIONS.map((n) => (
+            <button
+              key={n}
+              className={`dd-range-btn${lines === n ? ' dd-range-btn-active' : ''}`}
+              onClick={() => handleLinesChange(n)}
+              disabled={loading}
+            >
+              {n}
+            </button>
+          ))}
+          <span className="dd-logs-lines-label">реда</span>
+        </div>
+        <button className="dd-logs-refresh-btn" onClick={() => load(lines)} disabled={loading}>
+          Опресни
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="dd-state-msg">Зареждане...</p>
+      ) : fetchErr ? (
+        <p className="dd-state-msg dd-error-msg">{fetchErr}</p>
+      ) : logLines.length === 0 ? (
+        <p className="dd-logs-empty">Няма налични логове</p>
+      ) : (
+        <div className="dd-logs-box">
+          {logLines.map((line, i) => (
+            <div key={i} className="dd-log-line">{line}</div>
+          ))}
+          <div ref={logsEndRef} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────
 export default function DeviceDetail() {
   const { token } = useAuth()
@@ -949,6 +1042,12 @@ export default function DeviceDetail() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [activeTab, setActiveTab] = useState('history')
+
+  // inline device-name edit
+  const [nameEditing, setNameEditing] = useState(false)
+  const [nameValue, setNameValue] = useState('')
+  const [nameMsg, setNameMsg] = useState(null) // { type: 'ok'|'err', text }
+  const nameMsgTimer = useRef(null)
 
   const fetchHistory = useCallback(async (d) => {
     if (!tenantId || !deviceId) return
@@ -1031,6 +1130,33 @@ export default function DeviceDetail() {
   const isAdmin = claims?.role === 'admin'
   const alertActive = hasActiveError(status?.errors ?? [])
   const deviceName = status?.device_name || deviceId
+
+  const handleNameEdit = () => {
+    setNameValue(status?.device_name || '')
+    setNameEditing(true)
+  }
+
+  const handleNameCancel = () => {
+    setNameEditing(false)
+    setNameValue('')
+  }
+
+  const handleNameConfirm = async () => {
+    const trimmed = nameValue.trim()
+    if (!trimmed) return
+    try {
+      await updateDeviceName(tenantId, deviceId, trimmed)
+      setStatus((prev) => prev ? { ...prev, device_name: trimmed } : prev)
+      setNameEditing(false)
+      setNameMsg({ type: 'ok', text: 'Името е запазено' })
+      clearTimeout(nameMsgTimer.current)
+      nameMsgTimer.current = setTimeout(() => setNameMsg(null), 3000)
+    } catch (err) {
+      setNameMsg({ type: 'err', text: err.response?.data || 'Грешка при запазване' })
+      clearTimeout(nameMsgTimer.current)
+      nameMsgTimer.current = setTimeout(() => setNameMsg(null), 3000)
+    }
+  }
   const health = current?.health ?? null   // 0=Good, 1=Warning, 2=Error/Offline
   const isOffline = current?.temperature == null || health === 2
   const isStale   = !isOffline && health === 1
@@ -1056,7 +1182,30 @@ export default function DeviceDetail() {
       <header className="dd-header">
         <div className="dd-header-left">
           <button className="dd-back-btn" onClick={() => navigate('/')}>← Назад</button>
-          <span className="dd-device-name">{deviceName}</span>
+          {nameEditing ? (
+            <span className="dd-name-edit">
+              <input
+                className="dd-name-input"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleNameConfirm(); if (e.key === 'Escape') handleNameCancel() }}
+                autoFocus
+                maxLength={64}
+              />
+              <button className="dd-name-btn dd-name-confirm" onClick={handleNameConfirm} title="Потвърди">✓</button>
+              <button className="dd-name-btn dd-name-cancel" onClick={handleNameCancel} title="Откажи">✗</button>
+            </span>
+          ) : (
+            <span className="dd-device-name">
+              {deviceName}
+              {isAdmin && (
+                <button className="dd-name-edit-btn" onClick={handleNameEdit} title="Редактирай името">✏️</button>
+              )}
+            </span>
+          )}
+          {nameMsg && (
+            <span className={`dd-name-msg dd-name-msg-${nameMsg.type}`}>{nameMsg.text}</span>
+          )}
           {isOffline && <span className="dd-health-badge dd-health-offline">Офлайн</span>}
           {isStale   && <span className="dd-health-badge dd-health-stale">Стар сигнал</span>}
           <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
@@ -1089,6 +1238,9 @@ export default function DeviceDetail() {
       )}
       {activeTab === 'diagnostics' && (
         <TabDiagnostics cycles={cycles} errors={errors} />
+      )}
+      {activeTab === 'logs' && (
+        <TabLogs tenantId={tenantId} deviceId={deviceId} />
       )}
     </div>
   )

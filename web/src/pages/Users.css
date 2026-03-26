@@ -1,0 +1,166 @@
+.users-page {
+  min-height: 100vh;
+  background: #0f1117;
+  padding: 48px 28px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #e2e8f0;
+}
+
+.users-container {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.users-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.users-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.users-card {
+  background: #13151f;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  padding: 24px 28px;
+}
+
+.users-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 0.875rem;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.users-state {
+  color: #475569;
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.users-table th {
+  text-align: left;
+  padding: 8px 12px 10px;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #2a2d3a;
+}
+
+.users-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #1e2130;
+  color: #cbd5e1;
+  vertical-align: middle;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.users-row-self td {
+  color: #f1f5f9;
+}
+
+.users-role {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.users-role-admin {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.users-role-user {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.users-date {
+  color: #475569;
+  font-size: 0.8125rem;
+}
+
+.users-delete-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 5px;
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.users-delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.users-delete-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.users-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.users-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.users-select {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Dark input overrides (mirrors Profile.css) */
+.users-card .login-label {
+  color: #94a3b8;
+}
+
+.users-card .login-input {
+  background: #1e2130;
+  border-color: #2a2d3a;
+  color: #e2e8f0;
+}
+
+.users-card .login-input:focus {
+  border-color: #3b82f6;
+  background: #1e2130;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}

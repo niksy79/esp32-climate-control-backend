@@ -44,6 +44,12 @@ export const getDeviceTypes = () =>
 export const setDeviceType = (tenantId, deviceId, deviceTypeId) =>
   client.post(`/api/tenants/${tenantId}/devices/${deviceId}/type`, { device_type_id: deviceTypeId })
 
+export const updateDeviceName = (tenantId, deviceId, name) =>
+  client.patch(`/api/tenants/${tenantId}/devices/${deviceId}/name`, { device_name: name })
+
+export const getDeviceLogs = (tenantId, deviceId, lines = 100) =>
+  client.get(`/api/tenants/${tenantId}/devices/${deviceId}/logs`, { params: { lines } })
+
 export const getSettings = (tenantId, deviceId) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/settings`)
 
@@ -55,6 +61,16 @@ export const switchMode = (tenantId, deviceId, mode) =>
 
 export const setLight = (tenantId, deviceId, payload) =>
   client.post(`/api/tenants/${tenantId}/devices/${deviceId}/light`, payload)
+
+// User management
+export const listUsers = (tenantId) =>
+  client.get(`/api/tenants/${tenantId}/users`)
+
+export const createUser = (tenantId, data) =>
+  client.post(`/api/tenants/${tenantId}/users`, data)
+
+export const deleteUser = (tenantId, userId) =>
+  client.delete(`/api/tenants/${tenantId}/users/${userId}`)
 
 // Alert rules
 export const listAlertRules = (tenantId, deviceId) =>

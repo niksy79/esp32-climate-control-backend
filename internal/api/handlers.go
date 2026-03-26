@@ -3,14 +3,18 @@
 package api
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 
 	"climate-backend/internal/alerts"
 	"climate-backend/internal/auth"
@@ -100,6 +104,13 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
 
 	protected.HandleFunc(base+"/{device_id}/type", h.handleSetDeviceType).Methods(http.MethodPost)
+	protected.HandleFunc(base+"/{device_id}/name", h.handleUpdateDeviceName).Methods(http.MethodPatch)
+	protected.HandleFunc(base+"/{device_id}/logs", h.handleGetDeviceLogs).Methods(http.MethodGet)
+
+	userBase := "/{tenant_id}/users"
+	protected.HandleFunc(userBase, h.handleListUsers).Methods(http.MethodGet)
+	protected.HandleFunc(userBase, h.handleCreateUser).Methods(http.MethodPost)
+	protected.HandleFunc(userBase+"/{user_id}", h.handleDeleteUser).Methods(http.MethodDelete)
 
 	// ── Auth routes requiring JWT (no tenant isolation — user acts on own account) ──
 	authProtected := r.NewRoute().Subrouter()
@@ -161,6 +172,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"compressor_stats": dc.CompressorStats,
 		"has_errors":       h.svc.Errors.HasActiveErrors(tenantID, deviceID),
 		"critical_errors":  h.svc.Errors.HasCriticalErrors(tenantID, deviceID),
+		"alert_firing":     h.svc.Alerts.HasRecentlyFired(tenantID, deviceID),
 	})
 }
 
@@ -674,6 +686,182 @@ func (h *Handler) handleSetDeviceType(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.DB.SetDeviceTypeID(r.Context(), tenantID, deviceID, body.DeviceTypeID); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		log.Printf("api: set device type %s/%s: %v", tenantID, deviceID, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) handleUpdateDeviceName(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	var body struct {
+		DeviceName string `json:"device_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.DeviceName == "" {
+		http.Error(w, "device_name is required", http.StatusBadRequest)
+		return
+	}
+	err := h.svc.DB.UpdateDeviceName(r.Context(), tenantID, deviceID, body.DeviceName)
+	if errors.Is(err, db.ErrNoRows) {
+		http.Error(w, "device not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: update device name %s/%s: %v", tenantID, deviceID, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) handleGetDeviceLogs(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+
+	n := 100
+	if s := r.URL.Query().Get("lines"); s != "" {
+		v, err := strconv.Atoi(s)
+		if err != nil || v < 1 {
+			http.Error(w, "lines must be a positive integer", http.StatusBadRequest)
+			return
+		}
+		if v > 500 {
+			v = 500
+		}
+		n = v
+	}
+
+	path := fmt.Sprintf("logs/%s/%s.log", tenantID, deviceID)
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"lines": []string{}})
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: open log %s/%s: %v", tenantID, deviceID, err)
+		return
+	}
+	defer f.Close()
+
+	// sliding window — keep only the last n lines
+	ring := make([]string, n)
+	pos := 0
+	count := 0
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		ring[pos%n] = sc.Text()
+		pos++
+		count++
+	}
+	if err := sc.Err(); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("api: scan log %s/%s: %v", tenantID, deviceID, err)
+		return
+	}
+
+	var lines []string
+	if count == 0 {
+		lines = []string{}
+	} else if count <= n {
+		lines = ring[:count]
+	} else {
+		// oldest entry starts at pos%n
+		start := pos % n
+		lines = make([]string, n)
+		copy(lines, ring[start:])
+		copy(lines[n-start:], ring[:start])
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"lines": lines})
+}
+
+// ---------------------------------------------------------------------------
+// user-management handlers (admin only)
+// ---------------------------------------------------------------------------
+
+func (h *Handler) handleListUsers(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	tenantID := mux.Vars(r)["tenant_id"]
+	users, err := h.svc.DB.ListUsersByTenant(r.Context(), tenantID)
+	if err != nil {
+		http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if users == nil {
+		users = []models.User{}
+	}
+	jsonResp(w, users)
+}
+
+func (h *Handler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+	tenantID := mux.Vars(r)["tenant_id"]
+	var body struct {
+		Email    string      `json:"email"`
+		Password string      `json:"password"`
+		Role     models.Role `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if body.Email == "" || body.Password == "" {
+		http.Error(w, `{"error":"email and password are required"}`, http.StatusBadRequest)
+		return
+	}
+	if len(body.Password) < 8 {
+		http.Error(w, `{"error":"password must be at least 8 characters"}`, http.StatusBadRequest)
+		return
+	}
+	role := models.RoleUser
+	if body.Role == models.RoleAdmin {
+		role = models.RoleAdmin
+	}
+	if _, err := h.svc.DB.GetUserByEmailGlobal(r.Context(), body.Email); err == nil {
+		http.Error(w, `{"error":"email already registered"}`, http.StatusConflict)
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		return
+	}
+	user, err := h.svc.DB.CreateUser(r.Context(), tenantID, body.Email, string(hash), role)
+	if err != nil {
+		log.Printf("api: create user %s: %v", tenantID, err)
+		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonResp(w, user)
+}
+
+func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	tenantID := vars["tenant_id"]
+	userID := vars["user_id"]
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	if claims.UserID == userID {
+		http.Error(w, `{"error":"cannot delete your own account"}`, http.StatusBadRequest)
+		return
+	}
+	err := h.svc.DB.DeleteUser(r.Context(), tenantID, userID)
+	if err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

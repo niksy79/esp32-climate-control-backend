@@ -174,6 +174,30 @@ func (e *Engine) sendEmail(to, subject, body string) error {
 	return smtp.SendMail(addr, auth, e.smtp.From, []string{to}, msg)
 }
 
+// HasRecentlyFired returns true if any enabled rule for the tenant/device has
+// fired within its own cooldown window — meaning an alert is currently "active".
+// Uses only the in-memory cache; no DB query.
+func (e *Engine) HasRecentlyFired(tenantID, deviceID string) bool {
+	k := ruleKey(tenantID, deviceID)
+	e.mu.RLock()
+	rules := e.rules[k]
+	e.mu.RUnlock()
+
+	now := time.Now().UTC()
+	e.firedMu.Lock()
+	defer e.firedMu.Unlock()
+	for _, rule := range rules {
+		if !rule.Enabled {
+			continue
+		}
+		last, seen := e.lastFired[rule.ID]
+		if seen && now.Sub(last) < time.Duration(rule.CooldownMinutes)*time.Minute {
+			return true
+		}
+	}
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // CRUD — called by HTTP handlers; each mutates the DB then reloads the cache
 // ---------------------------------------------------------------------------
