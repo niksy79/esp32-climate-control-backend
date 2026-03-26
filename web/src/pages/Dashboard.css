@@ -67,6 +67,30 @@
   background: #475569;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-btn {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid #2a2d3a;
+  border-radius: 7px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.profile-btn:hover {
+  border-color: #475569;
+  color: #e2e8f0;
+  background: #1e2130;
+}
+
 .logout-btn {
   padding: 7px 16px;
   background: transparent;

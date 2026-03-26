@@ -3,8 +3,10 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log"
+	"math/big"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -200,6 +202,32 @@ VALUES
     ('climate_controller', 'set_mode', 'Set Mode', '{"mode": "string"}', 0),
     ('climate_controller', 'set_target_temp', 'Set Target Temperature', '{"value": "float"}', 1)
 ON CONFLICT (device_type_id, name) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS device_readings (
+    id          BIGSERIAL   PRIMARY KEY,
+    tenant_id   TEXT        NOT NULL,
+    device_id   TEXT        NOT NULL,
+    metric_name TEXT        NOT NULL,
+    value       REAL        NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, device_id)
+);
+CREATE INDEX IF NOT EXISTS device_readings_tenant_device_metric_time
+    ON device_readings (tenant_id, device_id, metric_name, recorded_at DESC);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token       TEXT        PRIMARY KEY,
+    user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tenant_id   TEXT        NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used        BOOLEAN     NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DO $$ BEGIN
+    ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
+EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL;
+END $$;
 `
 
 // ---------------------------------------------------------------------------
@@ -266,6 +294,20 @@ func (d *DB) InsertReading(ctx context.Context, tenantID, deviceID string, r mod
 	return err
 }
 
+// InsertDeviceReading записва единична метрична стойност в device_readings.
+// Timestamp-ът е винаги time.Now().UTC() — ESP32 payload timestamps се игнорират.
+func (d *DB) InsertDeviceReading(ctx context.Context, tenantID, deviceID, metric string, value float32) error {
+	_, err := d.pool.Exec(ctx,
+		`INSERT INTO device_readings (tenant_id, device_id, metric_name, value, recorded_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+		tenantID, deviceID, metric, value, time.Now().UTC(),
+	)
+	if err != nil {
+		return fmt.Errorf("db: insert device_reading %s/%s/%s: %w", tenantID, deviceID, metric, err)
+	}
+	return nil
+}
+
 // GetReadings returns readings for a tenant/device pair within a time range.
 func (d *DB) GetReadings(ctx context.Context, tenantID, deviceID string, from, to time.Time, limit int) ([]models.Reading, error) {
 	log.Printf("db: GetReadings tenant=%q device=%q from=%s to=%s limit=%d",
@@ -293,6 +335,88 @@ func (d *DB) GetReadings(ctx context.Context, tenantID, deviceID string, from, t
 	}
 	log.Printf("db: GetReadings tenant=%q device=%q → %d rows", tenantID, deviceID, len(readings))
 	return readings, rows.Err()
+}
+
+// GetDeviceReadings връща история за единична метрика от device_readings.
+// days се cap-ва на 31; максимум 144 записа (същото като GetReadings).
+func (d *DB) GetDeviceReadings(ctx context.Context, tenantID, deviceID, metric string, days int) ([]models.MetricReading, error) {
+	if days < 1 {
+		days = 1
+	}
+	if days > 31 {
+		days = 31
+	}
+	rows, err := d.pool.Query(ctx,
+		`SELECT value, recorded_at
+         FROM device_readings
+         WHERE tenant_id = $1
+           AND device_id = $2
+           AND metric_name = $3
+           AND recorded_at > NOW() - ($4 * INTERVAL '1 day')
+         ORDER BY recorded_at DESC
+         LIMIT 10000`,
+		tenantID, deviceID, metric, days,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("db: get device_readings %s/%s/%s: %w", tenantID, deviceID, metric, err)
+	}
+	defer rows.Close()
+
+	var result []models.MetricReading
+	for rows.Next() {
+		var mr models.MetricReading
+		if err := rows.Scan(&mr.Value, &mr.RecordedAt); err != nil {
+			return nil, fmt.Errorf("db: scan device_reading %s/%s/%s: %w", tenantID, deviceID, metric, err)
+		}
+		result = append(result, mr)
+	}
+	return result, rows.Err()
+}
+
+// GetDeviceReadingsPaired връща temperature и humidity от device_readings
+// наредени по recorded_at DESC, като ги обединява по nearest timestamp
+// в рамките на 1 секунда. Ползва се от history endpoint без ?metric=.
+func (d *DB) GetDeviceReadingsPaired(ctx context.Context, tenantID, deviceID string, days int) ([]models.Reading, error) {
+	if days < 1 {
+		days = 1
+	}
+	if days > 31 {
+		days = 31
+	}
+	rows, err := d.pool.Query(ctx,
+		`SELECT
+             t.value        AS temperature,
+             h.value        AS humidity,
+             t.recorded_at  AS recorded_at
+         FROM device_readings t
+         JOIN device_readings h
+           ON h.tenant_id   = t.tenant_id
+          AND h.device_id   = t.device_id
+          AND h.metric_name = 'humidity'
+          AND h.recorded_at BETWEEN t.recorded_at - INTERVAL '2 seconds'
+                                AND t.recorded_at + INTERVAL '2 seconds'
+         WHERE t.tenant_id   = $1
+           AND t.device_id   = $2
+           AND t.metric_name = 'temperature'
+           AND t.recorded_at > NOW() - ($3 * INTERVAL '1 day')
+         ORDER BY t.recorded_at DESC
+         LIMIT 10000`,
+		tenantID, deviceID, days,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("db: get device_readings paired %s/%s: %w", tenantID, deviceID, err)
+	}
+	defer rows.Close()
+
+	var result []models.Reading
+	for rows.Next() {
+		var r models.Reading
+		if err := rows.Scan(&r.Temperature, &r.Humidity, &r.Timestamp); err != nil {
+			return nil, fmt.Errorf("db: scan device_readings paired %s/%s: %w", tenantID, deviceID, err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -555,6 +679,100 @@ func (d *DB) CreateUser(ctx context.Context, tenantID, email, passwordHash strin
 	return u, nil
 }
 
+// generateTenantID генерира кратък уникален tenant_id (6 символа, a-z0-9).
+// Вътрешна помощна функция — не е метод на DB.
+func generateTenantID() string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 6)
+	for i := range b {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		b[i] = chars[n.Int64()]
+	}
+	return string(b)
+}
+
+// GenerateUniqueTenantID генерира tenant_id който не съществува в DB.
+func (d *DB) GenerateUniqueTenantID(ctx context.Context) (string, error) {
+	for range 10 {
+		id := generateTenantID()
+		var exists bool
+		err := d.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1)`, id,
+		).Scan(&exists)
+		if err != nil {
+			return "", fmt.Errorf("db: check tenant_id %s: %w", id, err)
+		}
+		if !exists {
+			return id, nil
+		}
+	}
+	return "", fmt.Errorf("db: failed to generate unique tenant_id after 10 attempts")
+}
+
+// CreatePasswordResetToken съхранява reset token валиден 1 час.
+func (d *DB) CreatePasswordResetToken(ctx context.Context, userID, tenantID, token string) error {
+	_, err := d.pool.Exec(ctx,
+		`INSERT INTO password_reset_tokens (token, user_id, tenant_id, expires_at)
+         VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour')`,
+		token, userID, tenantID,
+	)
+	if err != nil {
+		return fmt.Errorf("db: create reset token: %w", err)
+	}
+	return nil
+}
+
+// ValidatePasswordResetToken проверява token и връща user_id и tenant_id.
+// Маркира token-а като използван при успех.
+func (d *DB) ValidatePasswordResetToken(ctx context.Context, token string) (userID, tenantID string, err error) {
+	err = d.pool.QueryRow(ctx,
+		`UPDATE password_reset_tokens
+         SET used = TRUE
+         WHERE token = $1
+           AND used = FALSE
+           AND expires_at > NOW()
+         RETURNING user_id, tenant_id`,
+		token,
+	).Scan(&userID, &tenantID)
+	if err == pgx.ErrNoRows {
+		return "", "", ErrNoRows
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("db: validate reset token: %w", err)
+	}
+	return userID, tenantID, nil
+}
+
+// UpdatePassword задава нова bcrypt парола за потребител.
+func (d *DB) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	tag, err := d.pool.Exec(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`,
+		passwordHash, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("db: update password: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRows
+	}
+	return nil
+}
+
+// GetUserByID връща потребител по UUID.
+func (d *DB) GetUserByID(ctx context.Context, userID string) (models.User, error) {
+	var u models.User
+	var roleStr string
+	err := d.pool.QueryRow(ctx,
+		`SELECT id, tenant_id, email, password_hash, role, created_at
+         FROM users WHERE id = $1`, userID,
+	).Scan(&u.ID, &u.TenantID, &u.Email, &u.PasswordHash, &roleStr, &u.CreatedAt)
+	if err != nil {
+		return u, err
+	}
+	u.Role = models.Role(roleStr)
+	return u, nil
+}
+
 // GetUserByEmail returns a user by tenant + email.
 // Returns pgx.ErrNoRows if no matching user exists.
 func (d *DB) GetUserByEmail(ctx context.Context, tenantID, email string) (models.User, error) {
@@ -565,6 +783,24 @@ func (d *DB) GetUserByEmail(ctx context.Context, tenantID, email string) (models
 		FROM users
 		WHERE tenant_id = $1 AND email = $2`,
 		tenantID, email,
+	).Scan(&u.ID, &u.TenantID, &u.Email, &u.PasswordHash, &roleStr, &u.CreatedAt)
+	if err != nil {
+		return u, err
+	}
+	u.Role = models.Role(roleStr)
+	return u, nil
+}
+
+// GetUserByEmailGlobal търси потребител по email без да знае tenant_id.
+// Използва се само за password reset flow.
+func (d *DB) GetUserByEmailGlobal(ctx context.Context, email string) (models.User, error) {
+	var u models.User
+	var roleStr string
+	err := d.pool.QueryRow(ctx,
+		`SELECT id, tenant_id, email, password_hash, role, created_at
+         FROM users WHERE email = $1
+         ORDER BY created_at ASC
+         LIMIT 1`, email,
 	).Scan(&u.ID, &u.TenantID, &u.Email, &u.PasswordHash, &roleStr, &u.CreatedAt)
 	if err != nil {
 		return u, err

@@ -2,8 +2,16 @@ import client from './client'
 
 // Auth
 export const register = (data) => client.post('/api/auth/register', data)
-export const login = (data) => client.post('/api/auth/login', data)
+export const login = ({ email, password }) => client.post('/api/auth/login', { email, password })
 export const refresh = (data) => client.post('/api/auth/refresh', data)
+
+export const registerUser = (data) => client.post('/api/auth/register', data)
+export const forgotPassword = (email) =>
+  client.post('/api/auth/forgot-password', { email })
+export const resetPassword = (token, password) =>
+  client.post('/api/auth/reset-password', { token, password })
+export const changePassword = (old_password, new_password) =>
+  client.post('/api/auth/change-password', { old_password, new_password })
 
 // Devices
 export const listDevices = (tenantId) =>
@@ -17,6 +25,11 @@ export const getDeviceStatus = (tenantId, deviceId) =>
 
 export const getHistory = (tenantId, deviceId, days = 1) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/history`, { params: { days } })
+
+export const getMetricHistory = (tenantId, deviceId, metric, days = 1) =>
+  client.get(`/api/tenants/${tenantId}/devices/${deviceId}/history`, {
+    params: { metric, days },
+  })
 
 export const getCompressorCycles = (tenantId, deviceId, days = 7) =>
   client.get(`/api/tenants/${tenantId}/devices/${deviceId}/compressor-cycles`, { params: { days } })

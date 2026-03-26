@@ -71,7 +71,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("auth: %v", err)
 	}
-	authHandler := auth.NewHandler(authSvc, database)
+	authHandler := auth.New(
+		database,
+		authSvc,
+		os.Getenv("SMTP_HOST"),
+		envOr("SMTP_PORT", "587"),
+		os.Getenv("SMTP_USER"),
+		os.Getenv("SMTP_PASS"),
+		os.Getenv("SMTP_FROM"),
+		envOr("APP_URL", "http://localhost:5173"),
+	)
 
 	// -----------------------------------------------------------------
 	// Alert engine

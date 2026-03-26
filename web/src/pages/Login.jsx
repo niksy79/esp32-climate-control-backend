@@ -8,7 +8,7 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const [fields, setFields] = useState({ tenant_id: '', email: '', password: '' })
+  const [fields, setFields] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -21,7 +21,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const { data } = await apiLogin(fields)
+      const { data } = await apiLogin({ email: fields.email, password: fields.password })
       login(data.access_token)
       localStorage.setItem('refresh_token', data.refresh_token)
       navigate('/')
@@ -39,20 +39,6 @@ export default function Login() {
         <h1 className="login-title">Climate Controller</h1>
         <p className="login-subtitle">Sign in to your account</p>
         <form onSubmit={handleSubmit} className="login-form" noValidate>
-          <label className="login-label" htmlFor="tenant_id">
-            Tenant ID
-          </label>
-          <input
-            id="tenant_id"
-            name="tenant_id"
-            type="text"
-            autoComplete="organization"
-            required
-            className="login-input"
-            value={fields.tenant_id}
-            onChange={handleChange}
-          />
-
           <label className="login-label" htmlFor="email">
             Email
           </label>
@@ -87,6 +73,23 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="login-links">
+          <button
+            type="button"
+            className="login-link-btn"
+            onClick={() => navigate('/forgot-password')}
+          >
+            Забравена парола?
+          </button>
+          <button
+            type="button"
+            className="login-link-btn"
+            onClick={() => navigate('/register')}
+          >
+            Нямате акаунт? Регистрирайте се
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -74,6 +74,12 @@ type CompressorCycle struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// MetricReading е резултат от device_readings при GET history?metric=
+type MetricReading struct {
+	Value      float32   `json:"value"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 // ---------------------------------------------------------------------------
 // Storage / settings (storage_manager.h)
 // ---------------------------------------------------------------------------

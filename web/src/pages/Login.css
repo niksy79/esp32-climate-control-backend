@@ -87,3 +87,38 @@
   background: #93c5fd;
   cursor: not-allowed;
 }
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.login-link-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 4px;
+}
+
+.login-link-btn:hover {
+  color: #94a3b8;
+}

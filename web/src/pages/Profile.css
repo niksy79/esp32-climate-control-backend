@@ -1,0 +1,76 @@
+.profile-page {
+  min-height: 100vh;
+  background: #0f1117;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.profile-card {
+  background: #13151f;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  padding: 32px 36px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.profile-back-btn {
+  background: transparent;
+  border: 1px solid #2a2d3a;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  padding: 6px 12px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.profile-back-btn:hover {
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.profile-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0 0 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-success {
+  background: #14532d;
+  border: 1px solid #166534;
+  border-radius: 6px;
+  color: #86efac;
+  font-size: 0.875rem;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+/* Override Login.css colours for dark background */
+.profile-card .login-label {
+  color: #94a3b8;
+}
+
+.profile-card .login-input {
+  background: #1e2130;
+  border-color: #2a2d3a;
+  color: #e2e8f0;
+}
+
+.profile-card .login-input:focus {
+  border-color: #3b82f6;
+  background: #1e2130;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}

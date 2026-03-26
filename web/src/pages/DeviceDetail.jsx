@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import {
-  listDevices, getCurrentReading, getDeviceStatus, getHistory,
+  listDevices, getCurrentReading, getDeviceStatus, getHistory, getMetricHistory,
   getSettings, saveSettings, switchMode, setLight, listAlertRules, createAlertRule, deleteAlertRule,
   getCompressorCycles, getErrors, getDeviceTypes,
   setDeviceType as apiSetDeviceType,

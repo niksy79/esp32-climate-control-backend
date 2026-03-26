@@ -67,6 +67,8 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	r.HandleFunc("/api/auth/register", authHandler.Register).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/refresh", authHandler.Refresh).Methods(http.MethodPost)
+	r.HandleFunc("/api/auth/forgot-password", authHandler.ForgotPassword).Methods(http.MethodPost)
+	r.HandleFunc("/api/auth/reset-password", authHandler.ResetPassword).Methods(http.MethodPost)
 
 	// WebSocket — JWT validated from ?token= query param (browsers cannot set
 	// Authorization headers on WebSocket connections).
@@ -98,6 +100,11 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(alertBase+"/{rule_id}", h.handleDeleteAlertRule).Methods(http.MethodDelete)
 
 	protected.HandleFunc(base+"/{device_id}/type", h.handleSetDeviceType).Methods(http.MethodPost)
+
+	// ── Auth routes requiring JWT (no tenant isolation — user acts on own account) ──
+	authProtected := r.NewRoute().Subrouter()
+	authProtected.Use(authHandler.Middleware)
+	authProtected.HandleFunc("/api/auth/change-password", authHandler.ChangePassword).Methods(http.MethodPost)
 
 	// ── Device-type registry routes ──────────────────────────────────────────
 	// GET is public. POST/PUT require a valid admin JWT — use a subrouter so
@@ -165,10 +172,51 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) {
 			days = n
 		}
 	}
-	readings, err := h.svc.Datastore.GetLastNDays(r.Context(), tenantID, deviceID, days)
-	if err != nil {
-		http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+
+	// Нов branch: ?metric=temperature или ?metric=humidity → device_readings
+	metric := r.URL.Query().Get("metric")
+	if metric == "temperature" || metric == "humidity" {
+		readings, err := h.svc.DB.GetDeviceReadings(r.Context(), tenantID, deviceID, metric, days)
+		if err != nil {
+			log.Printf("api: get device_readings %s/%s/%s: %v", tenantID, deviceID, metric, err)
+			http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if readings == nil {
+			readings = []models.MetricReading{}
+		}
+		jsonResp(w, map[string]any{
+			"tenant_id": tenantID,
+			"device_id": deviceID,
+			"days":      days,
+			"metric":    metric,
+			"count":     len(readings),
+			"readings":  readings,
+		})
 		return
+	}
+
+	// Default path — чете от device_readings (paired temp+hum), същия JSON формат
+	readings, err := h.svc.DB.GetDeviceReadingsPaired(r.Context(), tenantID, deviceID, days)
+	if err != nil {
+		log.Printf("api: get device_readings paired %s/%s: %v", tenantID, deviceID, err)
+		// Fallback към старата readings таблица ако device_readings е празна или грешка
+		readings, err = h.svc.Datastore.GetLastNDays(r.Context(), tenantID, deviceID, days)
+		if err != nil {
+			http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if len(readings) == 0 {
+		// device_readings може да е празна за стари устройства — fallback
+		readings, err = h.svc.Datastore.GetLastNDays(r.Context(), tenantID, deviceID, days)
+		if err != nil {
+			http.Error(w, "query failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if readings == nil {
+		readings = []models.Reading{}
 	}
 	jsonResp(w, map[string]any{
 		"tenant_id": tenantID,

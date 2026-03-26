@@ -245,7 +245,10 @@ export default function Dashboard() {
             Живо
           </span>
         </div>
-        <button className="logout-btn" onClick={handleLogout}>Изход</button>
+        <div className="header-actions">
+          <button className="profile-btn" onClick={() => navigate('/profile')}>Профил</button>
+          <button className="logout-btn" onClick={handleLogout}>Изход</button>
+        </div>
       </header>
 
       <main className="dashboard-main">

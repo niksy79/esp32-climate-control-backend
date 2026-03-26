@@ -4,6 +4,10 @@ import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import DeviceDetail from './pages/DeviceDetail'
 import Login from './pages/Login'
+import Register from './pages/Register'
+import Profile from './pages/Profile'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -37,10 +41,42 @@ export default function App() {
             }
           />
           <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/login"
             element={
               <PublicOnlyRoute>
                 <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <Register />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPassword />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <PublicOnlyRoute>
+                <ResetPassword />
               </PublicOnlyRoute>
             }
           />

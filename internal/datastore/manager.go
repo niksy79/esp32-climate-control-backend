@@ -14,7 +14,10 @@ import (
 
 // MaxReadings is the maximum number of readings returned for a history query
 // (mirrors DataManager::MAX_READINGS = 144).
-const MaxReadings = 144
+// MaxReadings е максималният брой записи върнати от history endpoint.
+// ESP32 firmware пази 144 записа в LittleFS — на backend нямаме това ограничение.
+// 10 000 покрива ~7 дни при publish на всяка минута.
+const MaxReadings = 10_000
 
 // Manager wraps the database and exposes DataManager-equivalent operations.
 type Manager struct {
@@ -38,7 +41,17 @@ func (m *Manager) AddReading(ctx context.Context, tenantID, deviceID string, r m
 	if err := m.db.EnsureDevice(ctx, tenantID, deviceID); err != nil {
 		return err
 	}
-	return m.db.InsertReading(ctx, tenantID, deviceID, r)
+	if err := m.db.InsertReading(ctx, tenantID, deviceID, r); err != nil {
+		return err
+	}
+	// Dual-write към device_readings — non-fatal, не блокира основния flow.
+	if err := m.db.InsertDeviceReading(ctx, tenantID, deviceID, "temperature", r.Temperature); err != nil {
+		log.Printf("datastore: device_reading temperature %s/%s: %v", tenantID, deviceID, err)
+	}
+	if err := m.db.InsertDeviceReading(ctx, tenantID, deviceID, "humidity", r.Humidity); err != nil {
+		log.Printf("datastore: device_reading humidity %s/%s: %v", tenantID, deviceID, err)
+	}
+	return nil
 }
 
 // AddCompressorCycle stores a compressor cycle record.

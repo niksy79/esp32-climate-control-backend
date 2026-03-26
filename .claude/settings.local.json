@@ -31,7 +31,17 @@
       "Bash(npm create:*)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(PGPASSWORD=climate psql -h localhost -U climate -d climate -c \"\\\\d device_readings\" 2>&1)",
+      "Bash(mosquitto_pub -h localhost -t \"climate/tenant1/773C/sensor\" -m '{\"\"temperature\"\":4.2,\"\"humidity\"\":82.5,\"\"fallback_time\"\":false}')",
+      "Bash(echo \"exit=$?\")",
+      "Bash(lsof -ti:8080)",
+      "Bash(echo \"=== ?metric=temperature ===\" curl -s -H \"Authorization: Bearer $TOKEN\" \"http://localhost:8080/api/tenants/tenant1/devices/773C/history?metric=temperature&days=1\")",
+      "Bash(python3 -m json.tool __NEW_LINE_5c630a46cb0ec870__ echo \"=== ?metric=humidity ===\" curl -s -H \"Authorization: Bearer $TOKEN\" \"http://localhost:8080/api/tenants/tenant1/devices/773C/history?metric=humidity&days=1\")",
+      "Bash(__NEW_LINE_16c81421fa41fdaa__ echo:*)",
+      "Bash(__NEW_LINE_f9d4041eafb452e0__ echo:*)",
+      "Bash(xargs -r ps -p)",
+      "Bash(find /root/projects/climate-backend -maxdepth 2 -name *.exe -o -maxdepth 2 -perm /111 -name main)"
     ]
   }
 }
