@@ -7,52 +7,72 @@ import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLig
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
 
-const SYSTEM_STATE_LABELS = ['Нормален', 'Предупреждение', 'Грешка', 'Безопасен режим', 'Резервен']
+// Device type ID → image import map.
+// Add entries here as new device types / photos are introduced.
+// Place image files in src/assets/devices/.
+import meatDryerImg from '../assets/devices/meat-dryer.png'
+
+const DEVICE_IMAGE_MAP = {
+  climate_controller: meatDryerImg,
+}
+
+const MODE_LABELS = {
+  normal:               'Нормален',
+  heating:              'Нагряване',
+  beer_cooling:         'Бира',
+  room_temp:            'Стайна t°',
+  product_meat_fish:    'Месо/Риба',
+  product_dairy:        'Млечни',
+  product_ready_food:   'Готова храна',
+  product_vegetables:   'Зеленчуци',
+}
+
 const REFRESH_INTERVAL_MS = 60_000
 const TEMP_THRESHOLD = 8.0
-
-function hasActiveError(errors) {
-  return Array.isArray(errors) && errors.some((e) => e.active)
-}
 
 function RelayBadge({ label, on }) {
   return (
     <span className={`relay-badge ${on ? 'relay-on' : 'relay-off'}`}>
-      {label}&nbsp;{on ? 'ON' : 'OFF'}
+      {label}
     </span>
   )
 }
 
 function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onClick }) {
-  const health = device.health   // 0=Good, 1=Warning, 2=Error/Offline
+  const health    = device.health
   const isOffline = device.temperature === null || health === 2
   const isStale   = !isOffline && health === 1
-  const compressorOn = device.deviceStates?.compressor ?? false
-  const fanOn = device.deviceStates?.extra_fan ?? false
-  const lightOn = device.deviceStates?.light ?? false
-  const heatingOn = device.deviceStates?.heating ?? false
-  const hasErrors = hasActiveError(device.errors)
-  const stateLabel = SYSTEM_STATE_LABELS[device.systemState] ?? 'Неизвестно'
-  const name = device.deviceName || device.deviceId
-  const tempHigh = !isOffline && device.temperature > TEMP_THRESHOLD
-  const deviceType = device.deviceTypeId
+
+  const compressorOn = device.deviceStates?.compressor  ?? false
+  const extraFanOn   = device.deviceStates?.extra_fan   ?? false
+  const lightOn      = device.deviceStates?.light       ?? false
+  const heatingOn    = device.deviceStates?.heating     ?? false
+  const hasErrors    = device.hasErrors
+  const name         = device.deviceName || device.deviceId
+  const tempHigh     = !isOffline && device.temperature > TEMP_THRESHOLD
+
+  const deviceTypeObj = device.deviceTypeId
     ? deviceTypes?.find((t) => t.id === device.deviceTypeId)
     : null
 
+  // Image: try by device type id, then by display name, then null (CSS placeholder)
+  const deviceImage = DEVICE_IMAGE_MAP[device.deviceTypeId] ?? null
+
   let badgeClass, badgeLabel
   if (isOffline) {
-    badgeClass = 'alert-active'
-    badgeLabel = 'Офлайн'
+    badgeClass = 'alert-active';  badgeLabel = 'Офлайн'
   } else if (device.alertFiring) {
-    badgeClass = 'alert-active'
-    badgeLabel = 'Алерт'
+    badgeClass = 'alert-active';  badgeLabel = 'Алерт'
   } else if (hasErrors) {
-    badgeClass = 'alert-warning'
-    badgeLabel = 'Грешка'
+    badgeClass = 'alert-warning'; badgeLabel = 'Грешка'
   } else {
-    badgeClass = 'alert-ok'
-    badgeLabel = 'OK'
+    badgeClass = 'alert-ok';      badgeLabel = 'OK'
   }
+
+  const modeLabel = MODE_LABELS[device.activeMode] ?? '—'
+  const fanSpeed  = device.fanSpeed
+
+  const photoStyle = deviceImage ? { backgroundImage: `url(${deviceImage})` } : {}
 
   return (
     <div
@@ -62,65 +82,100 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <div className="card-header">
-        <div className="card-title-group">
-          <span className="card-title">{name}</span>
-          {deviceType && <span className="card-device-type">{deviceType.display_name}</span>}
+      {/* ── Photo half ── */}
+      <div
+        className={`card-photo-area${isOffline ? ' card-photo-offline' : ''}`}
+        style={photoStyle}
+      >
+        <div className="card-photo-gradient" />
+
+        {/* Badge — top right */}
+        <span className={`card-badge-corner alert-badge ${badgeClass}`}>{badgeLabel}</span>
+
+        {/* Device name — bottom left */}
+        <div className="card-name-block">
+          <span className="card-photo-name">{name}</span>
+          {deviceTypeObj && (
+            <span className="card-photo-type">{deviceTypeObj.display_name}</span>
+          )}
         </div>
-        <span className={`alert-badge ${badgeClass}`}>{badgeLabel}</span>
       </div>
 
-      <div className="card-readings">
-        {isOffline ? (
-          <>
-            <span className="reading-temp offline-dash">—</span>
-            <span className="reading-hum offline-dash">— %</span>
-          </>
-        ) : (
-          <>
-            <span className={`reading-temp${tempHigh ? ' temp-high' : ''}`}>
-              {formatTemperature(device.temperature)}
+      {/* ── Body half ── */}
+      <div className="card-body">
+        {/* 2×2 metric grid */}
+        <div className="card-metrics">
+          <div className="metric-cell">
+            <span className="metric-label">Температура</span>
+            <span className={
+              `metric-value metric-temp` +
+              (tempHigh && !isOffline ? ' temp-high' : '') +
+              (isOffline ? ' metric-offline' : '')
+            }>
+              {isOffline ? '—' : formatTemperature(device.temperature)}
             </span>
-            <span className={`reading-hum${isStale ? ' reading-stale' : ''}`}>
-              {formatHumidity(device.humidity)}
+          </div>
+
+          <div className="metric-cell">
+            <span className="metric-label">Влажност</span>
+            <span className={
+              `metric-value metric-hum` +
+              (isStale ? ' reading-stale' : '') +
+              (isOffline ? ' metric-offline' : '')
+            }>
+              {isOffline ? '—' : formatHumidity(device.humidity)}
             </span>
-          </>
-        )}
-      </div>
+          </div>
 
-      <div className="relay-badges">
-        <RelayBadge label="Компресор" on={compressorOn} />
-        <RelayBadge label="Вентилатор" on={fanOn} />
-        <RelayBadge label="Нагревател" on={heatingOn} />
-        <button
-          className={`card-light-btn ${lightOn ? 'card-light-on' : 'card-light-off'}`}
-          disabled={!isAdmin}
-          title={!isAdmin ? undefined : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
-          onClick={(e) => { e.stopPropagation(); onLightToggle && onLightToggle() }}
-        >
-          {lightOn ? 'Светлина ON' : 'Светлина OFF'}
-        </button>
-      </div>
+          <div className="metric-cell">
+            <span className="metric-label">Вентилатор</span>
+            <span className="metric-value metric-fan">
+              {!isOffline && fanSpeed != null ? `${fanSpeed}%` : '—'}
+            </span>
+          </div>
 
-      <div className="card-state">{stateLabel}</div>
+          <div className="metric-cell">
+            <span className="metric-label">Режим</span>
+            <span className="metric-value metric-mode">
+              {isOffline ? '—' : modeLabel}
+            </span>
+          </div>
+        </div>
 
-      <div className="card-footer">
-        {relativeTime(device.timestamp)}
-        {isStale && <span className="stale-indicator">· Стар сигнал</span>}
-        {isAdmin && (
+        {/* Relay badges row */}
+        <div className="card-relays">
+          <RelayBadge label="Компресор" on={compressorOn} />
+          <RelayBadge label="Вентилатор" on={extraFanOn} />
+          <RelayBadge label="Нагревател" on={heatingOn} />
           <button
-            className="card-delete-btn"
-            title="Изтрий устройство"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (window.confirm(`Изтрий устройство "${device.deviceName || device.deviceId}"?`)) {
-                onDelete && onDelete()
-              }
-            }}
+            className={`card-light-btn ${lightOn ? 'card-light-on' : 'card-light-off'}`}
+            disabled={!isAdmin}
+            title={!isAdmin ? undefined : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
+            onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
           >
-            🗑
+            Светлина {lightOn ? 'ON' : 'OFF'}
           </button>
-        )}
+        </div>
+
+        {/* Footer */}
+        <div className="card-footer">
+          <span>{relativeTime(device.timestamp)}</span>
+          {isStale && <span className="stale-indicator">· Стар сигнал</span>}
+          {isAdmin && (
+            <button
+              className="card-delete-btn"
+              title="Изтрий устройство"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm(`Изтрий устройство "${device.deviceName || device.deviceId}"?`)) {
+                  onDelete?.()
+                }
+              }}
+            >
+              🗑
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -130,14 +185,14 @@ export default function Dashboard() {
   const { token, logout } = useAuth()
   const navigate = useNavigate()
 
-  const claims = token ? decodeToken(token) : null
+  const claims   = token ? decodeToken(token) : null
   const tenantId = claims?.tenant_id ?? null
-  const isAdmin = claims?.role === 'admin'
+  const isAdmin  = claims?.role === 'admin'
 
-  const [devices, setDevices] = useState([])
+  const [devices,     setDevices]     = useState([])
   const [deviceTypes, setDeviceTypes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState('')
+  const [loading,     setLoading]     = useState(true)
+  const [fetchError,  setFetchError]  = useState('')
 
   const devicesRef = useRef(devices)
   devicesRef.current = devices
@@ -159,16 +214,18 @@ export default function Dashboard() {
         deviceList.map(async ({ device_id: deviceId, device_type_id: deviceTypeId }) => {
           const base = {
             deviceId,
-            deviceTypeId: deviceTypeId || null,
-            deviceName: null,
-            temperature: null,
-            humidity: null,
-            timestamp: null,
-            health: null,
-            deviceStates: null,
-            systemState: null,
-            errors: [],
-            alertFiring: false,
+            deviceTypeId:  deviceTypeId || null,
+            deviceName:    null,
+            temperature:   null,
+            humidity:      null,
+            timestamp:     null,
+            health:        null,
+            deviceStates:  null,
+            systemState:   null,
+            hasErrors:     false,
+            alertFiring:   false,
+            activeMode:    null,
+            fanSpeed:      null,
           }
           try {
             const [currentRes, statusRes] = await Promise.allSettled([
@@ -176,18 +233,20 @@ export default function Dashboard() {
               getDeviceStatus(tenantId, deviceId),
             ])
             const current = currentRes.status === 'fulfilled' ? currentRes.value.data : null
-            const status = statusRes.status === 'fulfilled' ? statusRes.value.data : null
+            const status  = statusRes.status  === 'fulfilled' ? statusRes.value.data  : null
             return {
               ...base,
-              deviceName: status?.device_name ?? null,
-              temperature: current?.temperature ?? null,
-              humidity: current?.humidity ?? null,
-              timestamp: current?.timestamp ?? null,
-              health: current?.health ?? null,
-              deviceStates: status?.device_states ?? null,
-              systemState: status?.system_status?.state ?? null,
-              errors: status?.errors ?? [],
-              alertFiring: status?.alert_firing ?? false,
+              deviceName:   status?.device_name                ?? null,
+              temperature:  current?.temperature               ?? null,
+              humidity:     current?.humidity                  ?? null,
+              timestamp:    current?.timestamp                 ?? null,
+              health:       current?.health                    ?? null,
+              deviceStates: status?.device_states              ?? null,
+              systemState:  status?.system_status?.state       ?? null,
+              hasErrors:    status?.has_errors                 ?? false,
+              alertFiring:  status?.alert_firing               ?? false,
+              activeMode:   status?.active_mode                ?? null,
+              fanSpeed:     status?.fan_settings?.speed        ?? null,
             }
           } catch (err) {
             console.error(`fetchAll: device ${deviceId}:`, err)
@@ -203,7 +262,6 @@ export default function Dashboard() {
       await doFetch()
     } catch (err) {
       if (err.response?.status === 401) {
-        // Give the axios interceptor time to refresh the token, then retry once.
         await new Promise((res) => setTimeout(res, 1000))
         try {
           await doFetch()
@@ -220,14 +278,14 @@ export default function Dashboard() {
     }
   }, [tenantId])
 
-  // Initial fetch + 30s polling
+  // Initial fetch + polling
   useEffect(() => {
     fetchAll()
     const id = setInterval(fetchAll, REFRESH_INTERVAL_MS)
     return () => clearInterval(id)
   }, [fetchAll])
 
-  // WebSocket live updates
+  // WebSocket live sensor updates
   const { lastMessage, readyState } = useWebSocket(tenantId, token)
   useEffect(() => {
     if (!lastMessage || lastMessage.type !== 'sensor') return
@@ -237,8 +295,8 @@ export default function Dashboard() {
           ? {
               ...d,
               temperature: lastMessage.temperature,
-              humidity: lastMessage.humidity,
-              timestamp: lastMessage.timestamp,
+              humidity:    lastMessage.humidity,
+              timestamp:   lastMessage.timestamp,
             }
           : d
       )
@@ -313,7 +371,7 @@ export default function Dashboard() {
                 onLightToggle={() => handleLightToggle(d.deviceId, d.deviceStates?.light ?? false)}
                 onDelete={async () => {
                   await deleteDevice(tenantId, d.deviceId)
-                  setDevices(prev => prev.filter(x => x.deviceId !== d.deviceId))
+                  setDevices((prev) => prev.filter((x) => x.deviceId !== d.deviceId))
                 }}
                 onClick={() => navigate(`/device/${d.deviceId}`)}
               />

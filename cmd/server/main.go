@@ -224,6 +224,7 @@ func main() {
 		Errors:    errorMgr,
 		Datastore: datastoreMgr,
 		Storage:   storageMgr,
+		Fan:       fanMgr,
 		Hub:       hub,
 		Alerts:    alertEngine,
 		MQTT:      mqttCli,

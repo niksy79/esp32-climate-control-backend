@@ -22,6 +22,7 @@ import (
 	"climate-backend/internal/datastore"
 	"climate-backend/internal/db"
 	"climate-backend/internal/errmanager"
+	"climate-backend/internal/fan"
 	"climate-backend/internal/models"
 	"climate-backend/internal/sensor"
 	"climate-backend/internal/status"
@@ -47,6 +48,7 @@ type Services struct {
 	Errors    *errmanager.Manager
 	Datastore *datastore.Manager
 	Storage   *storage.Manager
+	Fan       *fan.Manager
 	Hub       *ws.Hub
 	Alerts    *alerts.Engine
 	MQTT      ConfigPublisher // nil-safe: publish is skipped when nil
@@ -165,6 +167,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	s, _ := h.svc.Status.Get(tenantID, deviceID)
 	dc, _ := h.svc.Control.GetControl(tenantID, deviceID)
+	fs, _ := h.svc.Fan.GetSettings(tenantID, deviceID)
 	jsonResp(w, map[string]any{
 		"device_name":      deviceName,
 		"system_status":    s,
@@ -172,6 +175,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"active_mode":      dc.ActiveMode.String(),
 		"device_states":    dc.DeviceStates,
 		"compressor_stats": dc.CompressorStats,
+		"fan_settings":     fs,
 		"has_errors":       h.svc.Errors.HasActiveErrors(tenantID, deviceID),
 		"critical_errors":  h.svc.Errors.HasCriticalErrors(tenantID, deviceID),
 		"alert_firing":     h.svc.Alerts.HasRecentlyFired(tenantID, deviceID),
