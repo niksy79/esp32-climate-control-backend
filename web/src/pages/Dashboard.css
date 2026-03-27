@@ -149,24 +149,33 @@
 @media (max-width: 600px) {
   .device-grid {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
 
   .dashboard-main {
-    padding: 16px 16px 90px;
+    padding: 24px 24px 90px;
   }
 
   .dashboard-hero {
-    padding: 20px 16px 16px;
+    padding: 20px 24px 16px;
   }
 
   .dashboard-title {
     font-size: 1.25rem;
   }
+
+  .card-photo-area {
+    height: 120px;
+  }
+
+  .card-body {
+    padding: 12px 14px 10px;
+  }
 }
 
 /* ── Premium device card ──────────────────────────────────── */
 .device-card {
-  background: #212438;
+  background: #1a1d2b;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px;
   /* Default lift — card appears to float above the page */
@@ -229,8 +238,8 @@
     to bottom,
     transparent             0%,
     rgba(0, 0, 0, 0.06)   45%,
-    rgba(33, 36, 56, 0.60) 72%,
-    #212438               100%
+    rgba(26, 29, 43, 0.65) 72%,
+    #1a1d2b               100%
   );
   pointer-events: none;
 }
@@ -281,7 +290,7 @@
   display: flex;
   flex-direction: column;
   gap: 11px;
-  background: #212438;
+  background: #1a1d2b;
   flex: 1;
 }
 
@@ -324,7 +333,21 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.68);
   letter-spacing: 0;
-  line-height: 1.3;
+  line-height: 1;
+  align-self: flex-end;
+  text-transform: uppercase;
+  text-align: center;
+  display: block;
+  width: 100%;
+  margin-top: auto;
+}
+
+.metric-mode.mode-normal {
+  color: var(--green-text) !important;
+}
+
+.metric-mode.mode-heating {
+  color: #d97706 !important;
 }
 
 .metric-offline {
@@ -425,8 +448,8 @@
 
 .relay-off {
   background: var(--bg-raised);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* ── Card state (legacy) ──────────────────────────────────── */
@@ -435,7 +458,7 @@
 /* ── Card footer ──────────────────────────────────────────── */
 .card-footer {
   font-size: 0.625rem;
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.38);
   margin-top: auto;
   display: flex;
   align-items: center;
@@ -512,8 +535,8 @@
 /* OFF state — dark outlined */
 .card-light-toggle-off {
   background: transparent;
-  color: rgba(255, 255, 255, 0.38);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .light-state-label {
@@ -540,9 +563,9 @@
 
 /* Relay off style on dark card background */
 .card-relays .relay-off {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.48);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 /* Card grid: taller cards look better at larger min-width */

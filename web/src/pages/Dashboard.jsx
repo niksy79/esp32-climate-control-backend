@@ -16,7 +16,7 @@ const DEVICE_IMAGE_MAP = {
 }
 
 const MODE_LABELS = {
-  normal:               'Нормален',
+  normal:               'СУШИЛНЯ',
   heating:              'Нагряване',
   beer_cooling:         'Бира',
   room_temp:            'Стайна t°',
@@ -135,8 +135,8 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 
           <div className="metric-cell">
             <span className="metric-label">Режим</span>
-            <span className="metric-value metric-mode">
-              {isOffline ? '—' : modeLabel}
+            <span className={`metric-value metric-mode ${device.activeMode === 'normal' ? 'mode-normal' : device.activeMode === 'heating' ? 'mode-heating' : ''}`}>
+              {isOffline ? '—' : modeLabel?.toUpperCase()}
             </span>
           </div>
         </div>
