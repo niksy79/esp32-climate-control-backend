@@ -282,7 +282,7 @@ func (d *DB) UpsertDevice(ctx context.Context, dev models.DeviceIdentity) error 
 		INSERT INTO devices (tenant_id, device_id, device_name, hostname, ip_address, wifi_state, last_seen)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (tenant_id, device_id) DO UPDATE SET
-			device_name = EXCLUDED.device_name,
+			device_name = CASE WHEN devices.device_name = '' THEN EXCLUDED.device_name ELSE devices.device_name END,
 			hostname    = EXCLUDED.hostname,
 			ip_address  = EXCLUDED.ip_address,
 			wifi_state  = EXCLUDED.wifi_state,
