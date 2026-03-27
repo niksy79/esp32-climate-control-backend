@@ -185,6 +185,7 @@
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   box-shadow:
+    0 0 28px rgba(255, 255, 255, 0.05),   /* ambient halo — separates card from page */
     0 2px 12px rgba(0, 0, 0, 0.5),
     0 1px 3px  rgba(0, 0, 0, 0.35);
   cursor: pointer;
@@ -199,6 +200,7 @@
 .device-card:hover {
   transform: translateY(-3px);
   box-shadow:
+    0 0 34px rgba(255, 255, 255, 0.07),   /* halo intensifies on hover */
     0 14px 44px rgba(0, 0, 0, 0.55),
     0 0   0 1px rgba(100, 216, 240, 0.13);
   border-color: rgba(100, 216, 240, 0.18);
@@ -228,16 +230,16 @@
   filter: grayscale(1) opacity(0.42);
 }
 
-/* Gradient that fades photo → card body colour */
+/* Gradient that fades photo → card body colour — kept subtle so image stays vivid */
 .card-photo-gradient {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.04)  0%,
-    rgba(0, 0, 0, 0.08)  30%,
-    rgba(15, 17, 26, 0.72) 65%,
-    #0f111a              100%
+    transparent             0%,
+    rgba(0, 0, 0, 0.06)   45%,
+    rgba(15, 17, 26, 0.50) 72%,
+    #0f111a               100%
   );
   pointer-events: none;
 }
@@ -562,24 +564,10 @@
 /* ── Mobile card visibility ───────────────────────────────── */
 @media (max-width: 768px) {
   .device-card {
-    background: #161824;
+    /* Keep deep dark background — ambient halo (box-shadow) handles separation */
     border-color: rgba(255, 255, 255, 0.13);
     box-shadow:
-      0 4px 20px rgba(0, 0, 0, 0.55),
-      0 0 0 1px rgba(255, 255, 255, 0.04);
-  }
-
-  .card-body {
-    background: #161824;
-  }
-
-  .card-photo-gradient {
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.04)  0%,
-      rgba(0, 0, 0, 0.08)  30%,
-      rgba(22, 24, 36, 0.75) 65%,
-      #161824              100%
-    );
+      0 0 32px rgba(255, 255, 255, 0.06),   /* slightly stronger halo on mobile */
+      0 4px 20px rgba(0, 0, 0, 0.55);
   }
 }
