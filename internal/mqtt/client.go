@@ -187,6 +187,7 @@ func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
 	deviceID := parts[2]
 	subtopic := parts[3]
 	payload := msg.Payload()
+	log.Printf("mqtt: rx %s/%s/%s %s", tenantID, deviceID, subtopic, payload)
 
 	switch subtopic {
 	case "sensor":

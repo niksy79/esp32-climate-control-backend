@@ -1,4 +1,4 @@
-.PHONY: dev build test lint docker-up docker-down
+.PHONY: dev build test lint docker-up docker-down mqtt-spy logs
 
 # ── Local development ────────────────────────────────────────────────────────
 # Exports environment variables pointing at localhost, then runs the server.
@@ -29,3 +29,13 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+# ── Backend logs ─────────────────────────────────────────────────────────────
+logs:
+	docker compose logs -f climate-backend
+
+# ── MQTT spy ─────────────────────────────────────────────────────────────────
+# Prints every message published to climate/# in real time.
+# Format: <topic>  <payload>
+mqtt-spy:
+	docker compose exec mosquitto mosquitto_sub -v -t 'climate/#'
