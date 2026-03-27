@@ -1414,6 +1414,8 @@
     right: 0;
     padding: 0 16px 8px;
     z-index: 90;
+    transform: translateY(0);
+    will-change: transform;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sc-save-panel--hidden {
