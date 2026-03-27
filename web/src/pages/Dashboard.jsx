@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight, deleteDevice } from '../api/index'
@@ -192,7 +192,6 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 export default function Dashboard() {
   const { token } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
 
   const claims   = token ? decodeToken(token) : null
   const tenantId = claims?.tenant_id ?? null
@@ -328,12 +327,6 @@ export default function Dashboard() {
   }
 
   const isLive = readyState === WebSocket.OPEN
-  const [toast, setToast] = useState('')
-
-  function showComingSoon() {
-    setToast('Скоро')
-    setTimeout(() => setToast(''), 2000)
-  }
 
   return (
     <div className="dashboard">
@@ -381,46 +374,6 @@ export default function Dashboard() {
           </div>
         )}
       </main>
-
-      {toast && <div className="bottom-toast">{toast}</div>}
-
-      <nav className="bottom-nav">
-        <button
-          className={`bottom-nav-item${location.pathname === '/' ? ' bottom-nav-active' : ''}`}
-          onClick={() => navigate('/')}
-        >
-          <span className="bottom-nav-icon">🏠</span>
-          <span className="bottom-nav-label">Начало</span>
-        </button>
-
-        {isAdmin && (
-          <button
-            className={`bottom-nav-item${location.pathname === '/users' ? ' bottom-nav-active' : ''}`}
-            onClick={() => navigate('/users')}
-          >
-            <span className="bottom-nav-icon">👥</span>
-            <span className="bottom-nav-label">Потребители</span>
-          </button>
-        )}
-
-        <button className="bottom-nav-item" onClick={showComingSoon}>
-          <span className="bottom-nav-icon">🔔</span>
-          <span className="bottom-nav-label">Известия</span>
-        </button>
-
-        <button className="bottom-nav-item" onClick={showComingSoon}>
-          <span className="bottom-nav-icon">⚙️</span>
-          <span className="bottom-nav-label">Настройки</span>
-        </button>
-
-        <button
-          className={`bottom-nav-item${location.pathname === '/profile' ? ' bottom-nav-active' : ''}`}
-          onClick={() => navigate('/profile')}
-        >
-          <span className="bottom-nav-icon">👤</span>
-          <span className="bottom-nav-label">Профил</span>
-        </button>
-      </nav>
     </div>
   )
 }

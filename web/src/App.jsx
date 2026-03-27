@@ -9,6 +9,7 @@ import Profile from './pages/Profile'
 import Users from './pages/Users'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import BottomNav from './components/BottomNav'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -20,76 +21,86 @@ function PublicOnlyRoute({ children }) {
   return token ? <Navigate to="/" replace /> : children
 }
 
+function AppShell() {
+  const { token } = useAuth()
+  return (
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/device/:id"
+          element={
+            <PrivateRoute>
+              <DeviceDetail />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <PrivateRoute>
+              <Users />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <Login />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <Register />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <ForgotPassword />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicOnlyRoute>
+              <ResetPassword />
+            </PublicOnlyRoute>
+          }
+        />
+      </Routes>
+      {token && <BottomNav />}
+    </>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/device/:id"
-            element={
-              <PrivateRoute>
-                <DeviceDetail />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <PrivateRoute>
-                <Users />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicOnlyRoute>
-                <Login />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicOnlyRoute>
-                <Register />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <PublicOnlyRoute>
-                <ForgotPassword />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/reset-password"
-            element={
-              <PublicOnlyRoute>
-                <ResetPassword />
-              </PublicOnlyRoute>
-            }
-          />
-        </Routes>
+        <AppShell />
       </BrowserRouter>
     </AuthProvider>
   )

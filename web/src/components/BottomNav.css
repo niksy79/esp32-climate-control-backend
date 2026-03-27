@@ -1,0 +1,106 @@
+/* ── Bottom nav wrapper (full-width fixed anchor) ─────────── */
+.bottom-nav-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 16px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  pointer-events: none;   /* clicks pass through the gap around the pill */
+  z-index: 100;
+}
+
+/* ── Pill ─────────────────────────────────────────────────── */
+.bottom-nav {
+  max-width: 480px;
+  margin: 0 auto;
+  height: 64px;
+  background: rgba(15, 17, 23, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: stretch;
+  pointer-events: all;   /* restore clicks on the pill itself */
+  overflow: hidden;
+}
+
+/* ── Items ────────────────────────────────────────────────── */
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+  color: rgba(255, 255, 255, 0.38);
+  transition: color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item:hover {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* ── Icon ─────────────────────────────────────────────────── */
+.bottom-nav-icon {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 28px;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+/* ── Label ────────────────────────────────────────────────── */
+.bottom-nav-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  line-height: 1;
+}
+
+/* ── Active state ─────────────────────────────────────────── */
+.bottom-nav-active {
+  color: #4fc3f7;
+}
+
+.bottom-nav-active .bottom-nav-icon {
+  background: rgba(79, 195, 247, 0.13);
+}
+
+/* ── Coming-soon toast ────────────────────────────────────── */
+.bottom-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 35, 50, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 20px;
+  pointer-events: none;
+  z-index: 200;
+  white-space: nowrap;
+  animation: toast-fade 0.2s ease;
+}
+
+@keyframes toast-fade {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
