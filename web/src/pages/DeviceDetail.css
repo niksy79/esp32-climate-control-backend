@@ -1160,3 +1160,364 @@
 [data-theme="light"] .dd-logs-box {
   background: #1e293b;
 }
+
+/* ══════════════════════════════════════════════════════════
+   Settings cards — new design (sc-*)
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Device type row ──────────────────────────────────────── */
+.sc-type-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+}
+
+.sc-type-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.sc-type-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-type-select {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-body);
+  font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.sc-type-save-btn {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.sc-type-save-btn:hover:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text-body);
+}
+.sc-type-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Card grid ────────────────────────────────────────────── */
+.sc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 700px) {
+  .sc-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.sc-card {
+  background: #1a1d2e;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Card header ──────────────────────────────────────────── */
+.sc-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sc-card-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sc-card-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+/* ── Card body ────────────────────────────────────────────── */
+.sc-card-body {
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Slider section ───────────────────────────────────────── */
+.sc-slider-section {
+  margin-bottom: 12px;
+}
+
+.sc-slider-val {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+
+/* Range slider — cross-browser */
+.sc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  display: block;
+}
+
+.sc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.sc-slider::-webkit-slider-thumb:hover  { transform: scale(1.15); }
+.sc-slider::-webkit-slider-thumb:active { transform: scale(0.92); }
+
+.sc-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+/* Slider min/max labels */
+.sc-slider-bounds {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.28);
+  font-weight: 500;
+}
+
+/* ── Row ──────────────────────────────────────────────────── */
+.sc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  gap: 10px;
+}
+
+.sc-row--top {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sc-row-label {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.55);
+  min-width: 0;
+}
+
+/* ── Stepper (+/-) ────────────────────────────────────────── */
+.sc-stepper {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sc-stepper-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 1.125rem;
+  font-weight: 400;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.sc-stepper-btn:hover  { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.sc-stepper-btn:active { background: rgba(255, 255, 255, 0.16); }
+
+.sc-stepper-val {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 54px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── iOS-style toggle ─────────────────────────────────────── */
+.sc-toggle {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sc-toggle input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sc-toggle-track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.sc-toggle input:checked ~ .sc-toggle-track,
+.sc-toggle input:checked + .sc-toggle-track {
+  background: #4fc3f7;
+}
+
+.sc-toggle--amber input:checked ~ .sc-toggle-track,
+.sc-toggle--amber input:checked + .sc-toggle-track {
+  background: #f59e0b;
+}
+
+.sc-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+
+.sc-toggle input:checked ~ .sc-toggle-track .sc-toggle-thumb,
+.sc-toggle input:checked + .sc-toggle-track .sc-toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* ── Mixing fields (animated expand) ─────────────────────── */
+.sc-mix-fields {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.sc-mix-fields--on {
+  max-height: 200px;
+}
+
+/* ── Segmented button group ───────────────────────────────── */
+.sc-seg {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.sc-seg-btn {
+  padding: 5px 11px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.sc-seg-btn:hover:not(:disabled) { color: rgba(255, 255, 255, 0.75); }
+.sc-seg-btn:disabled { opacity: 0.4; cursor: default; }
+
+.sc-seg-btn--active {
+  background: #f59e0b;
+  color: #1a1100;
+  font-weight: 600;
+}
+
+/* ── Inline feedback message ──────────────────────────────── */
+.sc-inline-msg {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.sc-msg-ok  { color: var(--green-text); }
+.sc-msg-err { color: var(--red-text); }
+
+/* ── Save button ──────────────────────────────────────────── */
+.sc-save-btn {
+  width: 100%;
+  height: 48px;
+  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s ease;
+  margin-top: 4px;
+}
+.sc-save-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.sc-save-btn:active:not(:disabled) { transform: translateY(0); }
+.sc-save-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}

@@ -373,192 +373,251 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
   if (!settings) return <p className="dd-empty">Няма налични настройки.</p>
 
-  const currentTypeName = deviceTypes?.find((t) => t.id === (selectedType || deviceTypeId))?.display_name
+  const tempPct = ((parseFloat(form.temp_target) + 10) / 40) * 100
+  const humPct  = ((parseFloat(form.hum_target)  - 30) / 65) * 100
+  const fanPct  = parseFloat(form.fan_speed)
+
+  const isDirty = (() => {
+    const init = initialForm()
+    return (
+      parseFloat(form.temp_target)       !== parseFloat(init.temp_target)       ||
+      parseFloat(form.temp_offset)       !== parseFloat(init.temp_offset)       ||
+      parseFloat(form.hum_target)        !== parseFloat(init.hum_target)        ||
+      parseFloat(form.hum_offset)        !== parseFloat(init.hum_offset)        ||
+      parseInt(form.fan_speed, 10)       !== parseInt(init.fan_speed, 10)       ||
+      form.mixing_enabled                !== init.mixing_enabled                ||
+      parseInt(form.mixing_interval, 10) !== parseInt(init.mixing_interval, 10) ||
+      parseInt(form.mixing_duration, 10) !== parseInt(init.mixing_duration, 10)
+    )
+  })()
 
   return (
     <div className="dd-tab-content">
 
-      {/* ── Device type selector (admin only) ── */}
+      {/* ── Device type row (admin only) ── */}
       {isAdmin && deviceTypes?.length > 0 && (
-        <div className="dd-device-type-section">
-          <h3 className="dd-form-title">Тип устройство</h3>
-          <div className="dd-settings-list">
-            <div className="dd-settings-row">
-              <label className="dd-settings-label" htmlFor="device_type_select">Тип</label>
-              <select
-                id="device_type_select"
-                className="dd-settings-input dd-select"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-              >
-                <option value="">Не е зададен</option>
-                {deviceTypes.map((dt) => (
-                  <option key={dt.id} value={dt.id}>{dt.display_name}</option>
-                ))}
-              </select>
-            </div>
-            {!isAdmin && (
-              <div className="dd-settings-row">
-                <span className="dd-settings-label">Текущ тип</span>
-                <span className="dd-settings-value">{currentTypeName ?? 'Не е зadadен'}</span>
-              </div>
-            )}
+        <div className="sc-type-row">
+          <span className="sc-type-label">Тип устройство</span>
+          <div className="sc-type-right">
+            <select
+              className="sc-type-select"
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+            >
+              <option value="">— не е зададен —</option>
+              {deviceTypes.map((dt) => (
+                <option key={dt.id} value={dt.id}>{dt.display_name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="sc-type-save-btn"
+              disabled={typeSaving || !selectedType}
+              onClick={handleSaveType}
+            >
+              {typeSaving ? '...' : 'Запази'}
+            </button>
           </div>
           {typeMsg && (
-            <p className={`dd-save-msg ${typeMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
+            <span className={`sc-inline-msg ${typeMsg.type === 'ok' ? 'sc-msg-ok' : 'sc-msg-err'}`}>
               {typeMsg.text}
-            </p>
+            </span>
           )}
-          <button className="dd-save-btn" type="button" disabled={typeSaving || !selectedType} onClick={handleSaveType}>
-            {typeSaving ? 'Запазване...' : 'Запази тип'}
-          </button>
         </div>
       )}
 
-      {/* ── Light control (admin only) ── */}
-      {isAdmin && (
-        <div className="dd-device-type-section">
-          <h3 className="dd-form-title">Осветление</h3>
-          <div className="dd-settings-list">
-            <div className="dd-settings-row">
-              <span className="dd-settings-label">Режим</span>
-              <div className="dd-range-group" style={{ marginBottom: 0 }}>
-                <button
-                  type="button"
-                  className={`dd-range-btn${lightMode === 0 ? ' dd-range-btn-active' : ''}`}
-                  disabled={lightSaving}
-                  onClick={() => handleLightMode('manual')}
-                >
-                  Ръчен
-                </button>
-                <button
-                  type="button"
-                  className={`dd-range-btn${lightMode === 1 ? ' dd-range-btn-active' : ''}`}
-                  disabled={lightSaving}
-                  onClick={() => handleLightMode('auto')}
-                >
-                  Автоматичен
-                </button>
+      <form onSubmit={handleSave}>
+        <div className="sc-grid">
+
+          {/* ── Температура ── */}
+          <div className="sc-card">
+            <div className="sc-card-header">
+              <span className="sc-card-icon" style={{ color: '#4fc3f7' }}>🌡️</span>
+              <span className="sc-card-title">Температура</span>
+            </div>
+            <div className="sc-card-body">
+              <div className="sc-slider-section">
+                <div className="sc-slider-val" style={{ color: '#4fc3f7' }}>
+                  {parseFloat(form.temp_target).toFixed(1)}°C
+                </div>
+                <input
+                  type="range"
+                  className="sc-slider"
+                  min="-10" max="30" step="0.5"
+                  value={form.temp_target}
+                  onChange={(e) => setField('temp_target', e.target.value)}
+                  style={{ background: `linear-gradient(to right, #4fc3f7 ${tempPct}%, rgba(255,255,255,0.1) ${tempPct}%)` }}
+                />
+                <div className="sc-slider-bounds">
+                  <span>−10°C</span><span>30°C</span>
+                </div>
+              </div>
+              <div className="sc-row sc-row--top">
+                <span className="sc-row-label">Отклонение</span>
+                <div className="sc-stepper">
+                  <button type="button" className="sc-stepper-btn"
+                    onClick={() => setField('temp_offset', Math.max(0, parseFloat(form.temp_offset) - 0.5).toFixed(1))}>−</button>
+                  <span className="sc-stepper-val">{parseFloat(form.temp_offset).toFixed(1)}°C</span>
+                  <button type="button" className="sc-stepper-btn"
+                    onClick={() => setField('temp_offset', Math.min(5, parseFloat(form.temp_offset) + 0.5).toFixed(1))}>+</button>
+                </div>
               </div>
             </div>
-            {lightMode === 0 && (
-              <div className="dd-settings-row">
-                <span className="dd-settings-label">Светлина</span>
-                <button
-                  type="button"
-                  className={`dd-light-toggle${lightState ? ' dd-light-toggle-on' : ' dd-light-toggle-off'}`}
-                  disabled={lightSaving}
-                  onClick={handleLightToggle}
-                >
-                  {lightState ? 'Включено' : 'Изключено'}
-                </button>
+          </div>
+
+          {/* ── Влажност ── */}
+          <div className="sc-card">
+            <div className="sc-card-header">
+              <span className="sc-card-icon" style={{ color: '#4dd0a0' }}>💧</span>
+              <span className="sc-card-title">Влажност</span>
+            </div>
+            <div className="sc-card-body">
+              <div className="sc-slider-section">
+                <div className="sc-slider-val" style={{ color: '#4dd0a0' }}>
+                  {parseFloat(form.hum_target).toFixed(0)}%
+                </div>
+                <input
+                  type="range"
+                  className="sc-slider"
+                  min="30" max="95" step="1"
+                  value={form.hum_target}
+                  onChange={(e) => setField('hum_target', e.target.value)}
+                  style={{ background: `linear-gradient(to right, #4dd0a0 ${humPct}%, rgba(255,255,255,0.1) ${humPct}%)` }}
+                />
+                <div className="sc-slider-bounds">
+                  <span>30%</span><span>95%</span>
+                </div>
               </div>
-            )}
+              <div className="sc-row sc-row--top">
+                <span className="sc-row-label">Отклонение</span>
+                <div className="sc-stepper">
+                  <button type="button" className="sc-stepper-btn"
+                    onClick={() => setField('hum_offset', Math.max(0, parseFloat(form.hum_offset) - 1))}>−</button>
+                  <span className="sc-stepper-val">{parseFloat(form.hum_offset).toFixed(0)}%</span>
+                  <button type="button" className="sc-stepper-btn"
+                    onClick={() => setField('hum_offset', Math.min(15, parseFloat(form.hum_offset) + 1))}>+</button>
+                </div>
+              </div>
+            </div>
           </div>
-          {lightMsg && (
-            <p className={`dd-save-msg ${lightMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
-              {lightMsg.text}
-            </p>
+
+          {/* ── Вентилатор ── */}
+          <div className="sc-card">
+            <div className="sc-card-header">
+              <span className="sc-card-icon" style={{ color: '#a78bfa' }}>🌀</span>
+              <span className="sc-card-title">Вентилатор</span>
+            </div>
+            <div className="sc-card-body">
+              <div className="sc-slider-section">
+                <div className="sc-slider-val" style={{ color: '#a78bfa' }}>
+                  {parseInt(form.fan_speed, 10)}%
+                </div>
+                <input
+                  type="range"
+                  className="sc-slider"
+                  min="0" max="100" step="5"
+                  value={form.fan_speed}
+                  onChange={(e) => setField('fan_speed', e.target.value)}
+                  style={{ background: `linear-gradient(to right, #a78bfa ${fanPct}%, rgba(255,255,255,0.1) ${fanPct}%)` }}
+                />
+                <div className="sc-slider-bounds">
+                  <span>0%</span><span>100%</span>
+                </div>
+              </div>
+              <div className="sc-row sc-row--top">
+                <span className="sc-row-label">Миксиране</span>
+                <label className="sc-toggle">
+                  <input
+                    type="checkbox"
+                    checked={form.mixing_enabled}
+                    onChange={(e) => setField('mixing_enabled', e.target.checked)}
+                  />
+                  <span className="sc-toggle-track">
+                    <span className="sc-toggle-thumb" />
+                  </span>
+                </label>
+              </div>
+              <div className={`sc-mix-fields${form.mixing_enabled ? ' sc-mix-fields--on' : ''}`}>
+                <div className="sc-row">
+                  <span className="sc-row-label">Интервал (мин)</span>
+                  <div className="sc-stepper">
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setField('mixing_interval', Math.max(1, parseInt(form.mixing_interval, 10) - 1))}>−</button>
+                    <span className="sc-stepper-val">{form.mixing_interval}</span>
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setField('mixing_interval', Math.min(60, parseInt(form.mixing_interval, 10) + 1))}>+</button>
+                  </div>
+                </div>
+                <div className="sc-row">
+                  <span className="sc-row-label">Продължителност (мин)</span>
+                  <div className="sc-stepper">
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setField('mixing_duration', Math.max(1, parseInt(form.mixing_duration, 10) - 1))}>−</button>
+                    <span className="sc-stepper-val">{form.mixing_duration}</span>
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setField('mixing_duration', Math.min(30, parseInt(form.mixing_duration, 10) + 1))}>+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Осветление (admin only) ── */}
+          {isAdmin && (
+            <div className="sc-card">
+              <div className="sc-card-header">
+                <span className="sc-card-icon" style={{ color: '#f59e0b' }}>💡</span>
+                <span className="sc-card-title">Осветление</span>
+              </div>
+              <div className="sc-card-body">
+                <div className="sc-row">
+                  <span className="sc-row-label">Режим</span>
+                  <div className="sc-seg">
+                    <button
+                      type="button"
+                      className={`sc-seg-btn${lightMode === 1 ? ' sc-seg-btn--active' : ''}`}
+                      disabled={lightSaving}
+                      onClick={() => handleLightMode('auto')}
+                    >
+                      Автоматичен
+                    </button>
+                    <button
+                      type="button"
+                      className={`sc-seg-btn${lightMode === 0 ? ' sc-seg-btn--active' : ''}`}
+                      disabled={lightSaving}
+                      onClick={() => handleLightMode('manual')}
+                    >
+                      Ръчен
+                    </button>
+                  </div>
+                </div>
+                {lightMode === 0 && (
+                  <div className="sc-row sc-row--top">
+                    <span className="sc-row-label">Светлина</span>
+                    <label className="sc-toggle sc-toggle--amber">
+                      <input
+                        type="checkbox"
+                        checked={lightState}
+                        disabled={lightSaving}
+                        onChange={handleLightToggle}
+                      />
+                      <span className="sc-toggle-track">
+                        <span className="sc-toggle-thumb" />
+                      </span>
+                    </label>
+                  </div>
+                )}
+                {lightMsg && (
+                  <p className="sc-inline-msg" style={{ marginTop: 8 }}>
+                    <span className={lightMsg.type === 'ok' ? 'sc-msg-ok' : 'sc-msg-err'}>
+                      {lightMsg.text}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
           )}
-        </div>
-      )}
 
-      <form className="dd-settings-form" onSubmit={handleSave}>
-
-        {/* ── Temperature card ── */}
-        <div className="dd-settings-card dd-settings-card--temp">
-          <div className="dd-settings-card-title">🌡️ Температура</div>
-          <div className="dd-settings-grid">
-            <label className="dd-settings-label" htmlFor="temp_target">Target (°C)</label>
-            <input
-              id="temp_target"
-              className="dd-settings-input"
-              type="number" step="0.5" min="-30" max="30"
-              value={form.temp_target}
-              onChange={(e) => setField('temp_target', e.target.value)}
-            />
-            <label className="dd-settings-label" htmlFor="temp_offset">Офсет (°C)</label>
-            <input
-              id="temp_offset"
-              className="dd-settings-input"
-              type="number" step="0.1" min="-10" max="10"
-              value={form.temp_offset}
-              onChange={(e) => setField('temp_offset', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* ── Humidity card ── */}
-        <div className="dd-settings-card dd-settings-card--hum">
-          <div className="dd-settings-card-title">💧 Влажност</div>
-          <div className="dd-settings-grid">
-            <label className="dd-settings-label" htmlFor="hum_target">Target (%)</label>
-            <input
-              id="hum_target"
-              className="dd-settings-input"
-              type="number" step="1" min="0" max="100"
-              value={form.hum_target}
-              onChange={(e) => setField('hum_target', e.target.value)}
-            />
-            <label className="dd-settings-label" htmlFor="hum_offset">Офсет (%)</label>
-            <input
-              id="hum_offset"
-              className="dd-settings-input"
-              type="number" step="0.1" min="-10" max="10"
-              value={form.hum_offset}
-              onChange={(e) => setField('hum_offset', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* ── Fan card ── */}
-        <div className="dd-settings-card dd-settings-card--fan">
-          <div className="dd-settings-card-title">🌀 Вентилатор</div>
-          <div className="dd-settings-grid">
-            <label className="dd-settings-label" htmlFor="fan_speed">Скорост (%)</label>
-            <input
-              id="fan_speed"
-              className="dd-settings-input"
-              type="number" step="1" min="0" max="100"
-              value={form.fan_speed}
-              onChange={(e) => setField('fan_speed', e.target.value)}
-            />
-            <label className="dd-settings-label" htmlFor="mixing_enabled">Миксиране</label>
-            <label className="dd-toggle">
-              <input
-                id="mixing_enabled"
-                type="checkbox"
-                checked={form.mixing_enabled}
-                onChange={(e) => setField('mixing_enabled', e.target.checked)}
-              />
-              <span className="dd-toggle-track">
-                <span className="dd-toggle-thumb" />
-              </span>
-              <span className="dd-toggle-label">
-                {form.mixing_enabled ? 'включено' : 'изключено'}
-              </span>
-            </label>
-            {form.mixing_enabled && (
-              <>
-                <label className="dd-settings-label" htmlFor="mixing_interval">Интервал (мин)</label>
-                <input
-                  id="mixing_interval"
-                  className="dd-settings-input"
-                  type="number" step="1" min="1"
-                  value={form.mixing_interval}
-                  onChange={(e) => setField('mixing_interval', e.target.value)}
-                />
-                <label className="dd-settings-label" htmlFor="mixing_duration">Продължителност (мин)</label>
-                <input
-                  id="mixing_duration"
-                  className="dd-settings-input"
-                  type="number" step="1" min="1"
-                  value={form.mixing_duration}
-                  onChange={(e) => setField('mixing_duration', e.target.value)}
-                />
-              </>
-            )}
-          </div>
         </div>
 
         {saveMsg && (
@@ -567,8 +626,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
           </p>
         )}
 
-        <button className="dd-save-btn" type="submit" disabled={saving}>
-          {saving ? 'Запазване...' : 'Запази'}
+        <button className="sc-save-btn" type="submit" disabled={saving || !isDirty}>
+          {saving ? 'Запазване...' : 'Запази настройките'}
         </button>
       </form>
     </div>
