@@ -32,7 +32,13 @@ function formatChartTime(ts) {
 function formatChartDate(ts) {
   if (!ts) return ''
   const d = new Date(ts)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function formatChartDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function hasActiveError(errors) {
@@ -52,11 +58,16 @@ function Tabs({ active, onChange }) {
     { key: 'diagnostics', label: 'Диагностика' },
     { key: 'logs',        label: 'Логове' },
   ]
+  const activeRef = useRef(null)
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+  }, [active])
   return (
     <div className="dd-tabs">
       {tabs.map((t) => (
         <button
           key={t.key}
+          ref={active === t.key ? activeRef : null}
           className={`dd-tab${active === t.key ? ' dd-tab-active' : ''}`}
           onClick={() => onChange(t.key)}
         >
@@ -97,7 +108,7 @@ function TabHistory({ current, status, history, days, setDays }) {
   const tempHigh = current?.temperature != null && current.temperature > TEMP_THRESHOLD
 
   const chartData = [...(history ?? [])].reverse().map((r) => ({
-    time: formatChartTime(r.timestamp),
+    time: days > 1 ? formatChartDateTime(r.timestamp) : formatChartTime(r.timestamp),
     temperature: r.temperature ?? null,
     humidity: r.humidity ?? null,
   }))

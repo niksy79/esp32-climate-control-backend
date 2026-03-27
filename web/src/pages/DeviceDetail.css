@@ -1068,19 +1068,39 @@
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .dd-header,
-  .dd-tabs,
   .dd-tab-content {
     padding-left: 16px;
     padding-right: 16px;
   }
 
-  .dd-stats-row {
-    gap: 14px;
+  .dd-tabs {
+    padding-left: 0;
+    padding-right: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    display: block;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dd-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .dd-tab {
-    padding: 10px 14px;
+    display: inline-block;
+    padding: 10px 16px;
     font-size: 0.8125rem;
+  }
+  .dd-tab:first-child {
+    margin-left: 16px;
+  }
+  .dd-tab:last-child {
+    margin-right: 16px;
+  }
+
+  .dd-stats-row {
+    gap: 14px;
   }
 }
 
