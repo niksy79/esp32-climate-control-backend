@@ -72,18 +72,20 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 
       <div className="card-readings">
         {isOffline ? (
-          <div className="offline-row">
-            <span className="offline-badge">Офлайн</span>
+          <>
             <span className="reading-temp offline-dash">—</span>
-          </div>
+            <span className="reading-hum offline-dash">— %</span>
+          </>
         ) : (
-          <span className={`reading-temp${tempHigh ? ' temp-high' : ''}`}>
-            {formatTemperature(device.temperature)}
-          </span>
+          <>
+            <span className={`reading-temp${tempHigh ? ' temp-high' : ''}`}>
+              {formatTemperature(device.temperature)}
+            </span>
+            <span className={`reading-hum${isStale ? ' reading-stale' : ''}`}>
+              {formatHumidity(device.humidity)}
+            </span>
+          </>
         )}
-        <span className={`reading-hum${isOffline ? '' : isStale ? ' reading-stale' : ''}`}>
-          {isOffline ? '— %' : formatHumidity(device.humidity)}
-        </span>
       </div>
 
       <div className="relay-badges">

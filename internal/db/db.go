@@ -244,13 +244,26 @@ END $$;
 func (d *DB) DeviceExists(ctx context.Context, tenantID, deviceID string) (bool, error) {
 	var exists bool
 	err := d.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM devices WHERE tenant_id=$1 AND device_id=$2)`,
+		`SELECT EXISTS(SELECT 1 FROM devices WHERE tenant_id=$1 AND device_id=$2 AND deleted_at IS NULL)`,
 		tenantID, deviceID,
 	).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("db: device exists %s/%s: %w", tenantID, deviceID, err)
 	}
 	return exists, nil
+}
+
+// GetDeviceName returns the display name for a device (empty string if not set).
+func (d *DB) GetDeviceName(ctx context.Context, tenantID, deviceID string) (string, error) {
+	var name string
+	err := d.pool.QueryRow(ctx,
+		`SELECT device_name FROM devices WHERE tenant_id=$1 AND device_id=$2 AND deleted_at IS NULL`,
+		tenantID, deviceID,
+	).Scan(&name)
+	if err != nil {
+		return "", fmt.Errorf("db: get device name %s/%s: %w", tenantID, deviceID, err)
+	}
+	return name, nil
 }
 
 func (d *DB) EnsureDevice(ctx context.Context, tenantID, deviceID string) error {

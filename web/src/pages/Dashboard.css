@@ -268,7 +268,8 @@
 .card-readings {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .reading-temp {
@@ -282,14 +283,28 @@
   color: var(--red-text);
 }
 
+.reading-temp.offline-dash {
+  color: var(--text-muted);
+}
+
 .reading-hum {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #7eb8e8;
+  line-height: 1;
+  text-align: right;
+}
+
+.reading-hum.offline-dash {
+  color: var(--text-muted);
 }
 
 .reading-stale {
   opacity: 0.55;
+}
+
+[data-theme="light"] .reading-hum {
+  color: #2b7cc1;
 }
 
 /* ── Offline row ──────────────────────────────────────────── */
