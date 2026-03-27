@@ -131,6 +131,12 @@ func main() {
 	}
 
 	// -----------------------------------------------------------------
+	// Offline alert ticker — checks every 60s, no-op if no offline rules
+	// -----------------------------------------------------------------
+	stopOfflineTicker := alertEngine.StartOfflineTicker(60*time.Second, sensorMgr.AllLastSeen)
+	defer stopOfflineTicker()
+
+	// -----------------------------------------------------------------
 	// MQTT – topics: climate/<tenant_id>/<device_id>/<subtopic>
 	// -----------------------------------------------------------------
 	mqttCli, err := mqttclient.New(mqttclient.Config{

@@ -903,9 +903,9 @@ func (h *Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 
 func validateAlertRule(metric, operator, channel string) error {
 	switch metric {
-	case "temperature", "humidity":
+	case "temperature", "humidity", "offline":
 	default:
-		return fmt.Errorf("metric must be 'temperature' or 'humidity'")
+		return fmt.Errorf("metric must be 'temperature', 'humidity', or 'offline'")
 	}
 	switch operator {
 	case "gt", "lt", "gte", "lte":

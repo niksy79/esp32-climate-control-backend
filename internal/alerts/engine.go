@@ -128,14 +128,23 @@ func (e *Engine) fire(rule models.AlertRule, tenantID, deviceID string, value fl
 		log.Printf("alerts: update last_fired rule=%s: %v", rule.ID, err)
 	}
 
-	subject := fmt.Sprintf("[climate-alert] %s/%s %s %s %.2f",
-		tenantID, deviceID, rule.Metric, rule.Operator, rule.Threshold)
-	body := fmt.Sprintf(
-		"Alert triggered\n\nDevice:    %s / %s\nMetric:    %s\nCondition: %s %.2f\nValue:     %.2f\nTime:      %s\n",
-		tenantID, deviceID,
-		rule.Metric, rule.Operator, rule.Threshold,
-		value, firedAt.Format(time.RFC3339),
-	)
+	var subject, body string
+	if rule.Metric == "offline" {
+		subject = fmt.Sprintf("[climate-alert] %s/%s OFFLINE (%.0f min)", tenantID, deviceID, value)
+		body = fmt.Sprintf(
+			"Device offline alert\n\nDevice:    %s / %s\nOffline:   %.0f minutes (threshold: %.0f min)\nTime:      %s\n",
+			tenantID, deviceID, value, rule.Threshold, firedAt.Format(time.RFC3339),
+		)
+	} else {
+		subject = fmt.Sprintf("[climate-alert] %s/%s %s %s %.2f",
+			tenantID, deviceID, rule.Metric, rule.Operator, rule.Threshold)
+		body = fmt.Sprintf(
+			"Alert triggered\n\nDevice:    %s / %s\nMetric:    %s\nCondition: %s %.2f\nValue:     %.2f\nTime:      %s\n",
+			tenantID, deviceID,
+			rule.Metric, rule.Operator, rule.Threshold,
+			value, firedAt.Format(time.RFC3339),
+		)
+	}
 
 	switch rule.Channel {
 	case "email":
@@ -196,6 +205,108 @@ func (e *Engine) HasRecentlyFired(tenantID, deviceID string) bool {
 		}
 	}
 	return false
+}
+
+// EvaluateOffline checks all offline-type rules against last-seen timestamps.
+// Called periodically by StartOfflineTicker. threshold = minutes without data.
+func (e *Engine) EvaluateOffline(allLastSeen map[string]time.Time) {
+	e.mu.RLock()
+	// Collect all offline rules across all devices
+	var offlineRules []struct {
+		tenantID string
+		deviceID string
+		rule     models.AlertRule
+	}
+	for k, rules := range e.rules {
+		for _, rule := range rules {
+			if rule.Enabled && rule.Metric == "offline" {
+				parts := splitKey(k)
+				if parts[0] != "" {
+					offlineRules = append(offlineRules, struct {
+						tenantID string
+						deviceID string
+						rule     models.AlertRule
+					}{parts[0], parts[1], rule})
+				}
+			}
+		}
+	}
+	e.mu.RUnlock()
+
+	if len(offlineRules) == 0 {
+		return
+	}
+
+	now := time.Now().UTC()
+	for _, entry := range offlineRules {
+		key := ruleKey(entry.tenantID, entry.deviceID)
+		lastSeen, exists := allLastSeen[key]
+		if !exists {
+			continue // device never seen — skip, not "offline"
+		}
+
+		offlineMinutes := now.Sub(lastSeen).Minutes()
+		if offlineMinutes < entry.rule.Threshold {
+			continue // device is still within the threshold
+		}
+
+		cooldown := time.Duration(entry.rule.CooldownMinutes) * time.Minute
+		e.firedMu.Lock()
+		last, seen := e.lastFired[entry.rule.ID]
+		if seen && now.Sub(last) < cooldown {
+			e.firedMu.Unlock()
+			continue
+		}
+		e.lastFired[entry.rule.ID] = now
+		e.firedMu.Unlock()
+
+		go e.fire(entry.rule, entry.tenantID, entry.deviceID, offlineMinutes, now)
+	}
+}
+
+// HasOfflineRules returns true if any enabled rule uses the "offline" metric.
+func (e *Engine) HasOfflineRules() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, rules := range e.rules {
+		for _, r := range rules {
+			if r.Enabled && r.Metric == "offline" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// StartOfflineTicker launches a goroutine that periodically evaluates offline
+// rules. It returns a stop function. getLastSeen is called each tick to obtain
+// current device timestamps from the sensor manager.
+func (e *Engine) StartOfflineTicker(interval time.Duration, getLastSeen func() map[string]time.Time) func() {
+	ticker := time.NewTicker(interval)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if e.HasOfflineRules() {
+					e.EvaluateOffline(getLastSeen())
+				}
+			case <-done:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+	return func() { close(done) }
+}
+
+func splitKey(k string) [2]string {
+	for i := 0; i < len(k); i++ {
+		if k[i] == '/' {
+			return [2]string{k[:i], k[i+1:]}
+		}
+	}
+	return [2]string{k, ""}
 }
 
 // ---------------------------------------------------------------------------

@@ -133,6 +133,18 @@ func (m *Manager) SeedFromDB(readings map[string]models.Reading) {
 	}
 }
 
+// AllLastSeen returns the last-seen timestamp for every tracked device.
+// Keys are "tenantID/deviceID".
+func (m *Manager) AllLastSeen() map[string]time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]time.Time, len(m.devices))
+	for k, ds := range m.devices {
+		out[k] = ds.latest.Timestamp
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------------
 // internal helpers
 // ---------------------------------------------------------------------------

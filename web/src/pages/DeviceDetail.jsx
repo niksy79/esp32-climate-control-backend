@@ -563,8 +563,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
 // ── Tab: Алерти ───────────────────────────────────────────
 const OPERATOR_SENTENCE = { gt: 'по-висока от', lt: 'по-ниска от', gte: 'равна или по-висока от', lte: 'равна или по-ниска от' }
-const METRIC_ICONS      = { temperature: '🌡️', humidity: '💧' }
-const METRIC_NAMES      = { temperature: 'Температура', humidity: 'Влажност' }
+const METRIC_ICONS      = { temperature: '🌡️', humidity: '💧', offline: '📡' }
+const METRIC_NAMES      = { temperature: 'Температура', humidity: 'Влажност', offline: 'Офлайн' }
 
 const EMPTY_RULE = {
   metric: 'temperature',
@@ -622,94 +622,101 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
     }
   }
 
-  const unit = form.metric === 'temperature' ? '°C' : '%'
+  const isOffline = form.metric === 'offline'
+  const unit = isOffline ? 'мин' : form.metric === 'temperature' ? '°C' : '%'
 
   return (
     <div className="dd-tab-content">
 
       {/* ── Create form ── */}
       <form className="dd-alert-form" onSubmit={handleAdd}>
-        <div className="dd-settings-card">
-          <div className="dd-settings-card-title">🔔 Ново известие</div>
+        <div className="sc-card sc-card--alert-form">
+          <div className="sc-card-body">
+            <p className="dd-alert-form-title">Ново известие</p>
 
-          {/* Line 1: Изпрати имейл до [email] */}
-          <div className="dd-alert-line">
-            <span className="dd-alert-prose">Изпрати имейл до</span>
-            <input
-              id="al_recipient"
-              className="dd-settings-input dd-alert-email-input"
-              type="email" required placeholder="user@example.com"
-              value={form.recipient}
-              onChange={(e) => setField('recipient', e.target.value)}
-            />
-          </div>
-
-          {/* Line 2: когато [метрика] е [оператор] */}
-          <div className="dd-alert-line">
-            <span className="dd-alert-prose">когато</span>
-            <select
-              id="al_metric"
-              className="dd-settings-input dd-select dd-alert-select"
-              value={form.metric}
-              onChange={(e) => setField('metric', e.target.value)}
-            >
-              <option value="temperature">температурата</option>
-              <option value="humidity">влажността</option>
-            </select>
-            <span className="dd-alert-prose">е</span>
-            <select
-              id="al_operator"
-              className="dd-settings-input dd-select dd-alert-select"
-              value={form.operator}
-              onChange={(e) => setField('operator', e.target.value)}
-            >
-              <option value="gt">по-висока от</option>
-              <option value="lt">по-ниска от</option>
-              <option value="gte">равна или по-висока от</option>
-              <option value="lte">равна или по-ниска от</option>
-            </select>
-          </div>
-
-          {/* Line 3: [threshold] °C/% */}
-          <div className="dd-alert-line">
-            <input
-              id="al_threshold"
-              className="dd-settings-input dd-alert-threshold"
-              type="number" step="0.1" required
-              value={form.threshold}
-              onChange={(e) => setField('threshold', e.target.value)}
-            />
-            <span className="dd-alert-unit">{unit}</span>
-          </div>
-
-          {/* Line 4: Не изпращай повторно в рамките на [n] минути */}
-          <div className="dd-alert-line">
-            <span className="dd-alert-prose">Не изпращай повторно в рамките на</span>
-            <input
-              id="al_cooldown"
-              className="dd-settings-input dd-alert-number"
-              type="number" step="1" min="1"
-              value={form.cooldown_minutes}
-              onChange={(e) => setField('cooldown_minutes', e.target.value)}
-            />
-            <span className="dd-alert-prose">минути</span>
-          </div>
-
-          {/* Line 5: toggle + submit */}
-          <div className="dd-alert-line dd-alert-line--footer">
-            <label className="dd-toggle">
+            <div className="dd-alert-line">
+              <span className="dd-alert-prose">Изпрати имейл до</span>
               <input
-                id="al_enabled"
-                type="checkbox"
-                checked={form.enabled}
-                onChange={(e) => setField('enabled', e.target.checked)}
+                id="al_recipient"
+                className="dd-settings-input dd-alert-email-input"
+                type="email" required placeholder="user@example.com"
+                value={form.recipient}
+                onChange={(e) => setField('recipient', e.target.value)}
               />
-              <span className="dd-toggle-track"><span className="dd-toggle-thumb" /></span>
-              <span className="dd-toggle-label">Активно</span>
-            </label>
-            <button className="dd-save-btn dd-alert-add-btn" type="submit" disabled={adding}>
-              {adding ? 'Добавяне...' : 'Добави известие'}
-            </button>
+            </div>
+
+            <div className="dd-alert-line">
+              <span className="dd-alert-prose">когато</span>
+              <select
+                id="al_metric"
+                className="dd-settings-input dd-select dd-alert-select"
+                value={form.metric}
+                onChange={(e) => {
+                  setField('metric', e.target.value)
+                  if (e.target.value === 'offline') setField('operator', 'gt')
+                }}
+              >
+                <option value="temperature">температурата</option>
+                <option value="humidity">влажността</option>
+                <option value="offline">устройството е офлайн</option>
+              </select>
+              {!isOffline && (
+                <>
+                  <span className="dd-alert-prose">е</span>
+                  <select
+                    id="al_operator"
+                    className="dd-settings-input dd-select dd-alert-select"
+                    value={form.operator}
+                    onChange={(e) => setField('operator', e.target.value)}
+                  >
+                    <option value="gt">по-висока от</option>
+                    <option value="lt">по-ниска от</option>
+                    <option value="gte">равна или по-висока от</option>
+                    <option value="lte">равна или по-ниска от</option>
+                  </select>
+                </>
+              )}
+            </div>
+
+            <div className="dd-alert-line">
+              {isOffline && <span className="dd-alert-prose">повече от</span>}
+              <input
+                id="al_threshold"
+                className="dd-settings-input dd-alert-threshold"
+                type="number" step={isOffline ? '1' : '0.1'} min={isOffline ? '1' : undefined} required
+                value={form.threshold}
+                onChange={(e) => setField('threshold', e.target.value)}
+              />
+              <span className="dd-alert-unit">{unit}</span>
+            </div>
+
+            <div className="dd-alert-line">
+              <span className="dd-alert-prose">Не изпращай повторно в рамките на</span>
+              <input
+                id="al_cooldown"
+                className="dd-settings-input dd-alert-number"
+                type="number" step="1" min="1"
+                value={form.cooldown_minutes}
+                onChange={(e) => setField('cooldown_minutes', e.target.value)}
+              />
+              <span className="dd-alert-prose">минути</span>
+            </div>
+
+            <div className="dd-alert-line dd-alert-line--footer">
+              <label className="dd-toggle">
+                <input
+                  id="al_enabled"
+                  type="checkbox"
+                  checked={form.enabled}
+                  onChange={(e) => setField('enabled', e.target.checked)}
+                />
+                <span className="dd-toggle-track"><span className="dd-toggle-thumb" /></span>
+                <span className="dd-toggle-label">Активно</span>
+              </label>
+              <button className="dd-alert-add-btn" type="submit" disabled={adding}>
+                {adding ? 'Добавяне...' : 'Добави'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -724,32 +731,50 @@ function TabAlerts({ rules, setRules, tenantId, deviceId }) {
       {rules.length === 0 ? (
         <p className="dd-empty">Няма настроени известия.</p>
       ) : (
-        <ul className="dd-alert-list">
+        <div className="dd-alert-grid">
           {rules.map((rule) => (
-            <li key={rule.id} className="dd-alert-item">
-              <div className="dd-alert-item-top">
-                <span className="dd-alert-condition">
-                  {METRIC_ICONS[rule.metric]}{' '}
-                  {METRIC_NAMES[rule.metric] ?? rule.metric}{' '}
-                  {OPERATOR_SENTENCE[rule.operator] ?? rule.operator}{' '}
-                  {rule.threshold}{rule.metric === 'temperature' ? '°C' : '%'}
-                  {' → '}{rule.recipient}
-                </span>
-                <div className="dd-alert-item-actions">
-                  <span className={`dd-alert-status ${rule.enabled ? 'alert-enabled' : 'alert-disabled'}`}>
-                    {rule.enabled ? 'активен' : 'неактивен'}
+            <div key={rule.id} className={`sc-card dd-alert-rule-card${rule.enabled ? ' dd-alert-rule-card--active' : ''}`}>
+              <div className="sc-card-body">
+                <div className="dd-alert-rule-header">
+                  <span className="dd-alert-rule-icon">
+                    {rule.metric === 'temperature' ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                    ) : rule.metric === 'offline' ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-3 4-7 6-7 11a7 7 0 0 0 14 0c0-5-4-7-7-11z"/></svg>
+                    )}
                   </span>
-                  <button className="dd-delete-btn" type="button" onClick={() => handleDelete(rule)}>
-                    Изтрий
-                  </button>
+                  <span className="dd-alert-rule-condition">
+                    {rule.metric === 'offline'
+                      ? `Офлайн повече от ${rule.threshold} мин`
+                      : `${METRIC_NAMES[rule.metric]} ${OPERATOR_SENTENCE[rule.operator]} ${rule.threshold}${rule.metric === 'temperature' ? '°C' : '%'}`
+                    }
+                  </span>
                 </div>
+                <div className="dd-alert-rule-details">
+                  <div className="dd-alert-rule-row">
+                    <span className="dd-alert-rule-label">Получател</span>
+                    <span className="dd-alert-rule-value">{rule.recipient}</span>
+                  </div>
+                  <div className="dd-alert-rule-row">
+                    <span className="dd-alert-rule-label">Cooldown</span>
+                    <span className="dd-alert-rule-value">{rule.cooldown_minutes} мин</span>
+                  </div>
+                  <div className="dd-alert-rule-row">
+                    <span className="dd-alert-rule-label">Статус</span>
+                    <span className={`dd-alert-status ${rule.enabled ? 'alert-enabled' : 'alert-disabled'}`}>
+                      {rule.enabled ? 'активен' : 'неактивен'}
+                    </span>
+                  </div>
+                </div>
+                <button className="dd-delete-btn dd-alert-rule-delete" type="button" onClick={() => handleDelete(rule)}>
+                  Изтрий
+                </button>
               </div>
-              <div className="dd-alert-item-bottom">
-                <span className="dd-alert-cooldown">Cooldown: {rule.cooldown_minutes} мин</span>
-              </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )
@@ -849,11 +874,14 @@ function TabModes({ activeMode, setActiveMode, tenantId, deviceId }) {
                   onKeyDown={(e) => e.key === 'Enter' && handleSelect(mode)}
                 >
                   {isActive && <span className="dd-mode-check">✓</span>}
-                  <p className="dd-mode-name">{mode.name}</p>
-                  <p className="dd-mode-desc">{mode.desc}</p>
-                  <p className="dd-mode-fixed">
-                    {mode.fixed ? `Фиксирано: ${mode.fixed}` : 'Използва зададените настройки'}
-                  </p>
+                  <div className="dd-mode-icon">{mode.icon}</div>
+                  <div className="dd-mode-text">
+                    <p className="dd-mode-name">{mode.name}</p>
+                    <p className="dd-mode-desc">{mode.desc}</p>
+                    <p className="dd-mode-fixed">
+                      {mode.fixed ? `Фиксирано: ${mode.fixed}` : 'Използва зададените настройки'}
+                    </p>
+                  </div>
                 </div>
               )
             })}

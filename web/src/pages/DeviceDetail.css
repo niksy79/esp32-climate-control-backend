@@ -488,7 +488,16 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+}
+
+.dd-alert-form-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .dd-form-title {
@@ -597,75 +606,109 @@
 
 .dd-alert-add-btn {
   width: auto;
-  padding: 0 20px;
+  padding: 8px 20px;
   flex-shrink: 0;
+  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
 
-/* ── Alert rules list ─────────────────────────────────────── */
-.dd-alert-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.dd-alert-add-btn:hover:not(:disabled) { opacity: 0.85; }
+.dd-alert-add-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Alert rules grid ─────────────────────────────────────── */
+.dd-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 0 4px;
+}
+
+@media (max-width: 700px) {
+  .dd-alert-grid { grid-template-columns: 1fr; }
+}
+
+.dd-alert-rule-card {
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+.dd-alert-rule-card--active {
+  border: 2px solid var(--green);
+}
+
+.dd-alert-rule-card--active:hover {
+  border-color: var(--green);
+}
+
+/* Rule header: icon + condition */
+.dd-alert-rule-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
 }
 
-.dd-alert-item {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 18px;
+.dd-alert-rule-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: rgba(226, 232, 240, 0.6);
+}
+
+.dd-alert-rule-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dd-alert-rule-condition {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Rule details rows */
+.dd-alert-rule-details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
-.dd-alert-item-top {
+.dd-alert-rule-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-}
-
-.dd-alert-item-actions {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  flex-shrink: 0;
 }
 
-.dd-alert-item-bottom {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.dd-alert-condition {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-body);
-}
-
-.dd-alert-channel {
+.dd-alert-rule-label {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
 
-.dd-alert-cooldown {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+.dd-alert-rule-value {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: right;
+  word-break: break-all;
 }
 
+/* Delete button */
 .dd-delete-btn {
-  padding: 3px 10px;
+  padding: 5px 12px;
   background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
   color: var(--red-text);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -675,6 +718,11 @@
   border-color: rgba(239, 68, 68, 0.5);
 }
 
+.dd-alert-rule-delete {
+  align-self: flex-end;
+}
+
+/* Status badge */
 .dd-alert-status {
   padding: 2px 9px;
   border-radius: 999px;
@@ -722,12 +770,9 @@
 
 .dd-mode-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-@media (max-width: 1024px) {
-  .dd-mode-grid { grid-template-columns: repeat(2, 1fr); }
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 0 4px;
 }
 
 @media (max-width: 600px) {
@@ -736,35 +781,57 @@
 
 .dd-mode-card {
   position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  background: #1a1d2b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 18px 16px;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
   outline: none;
-  transition: border-color 0.15s;
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 6px  rgba(0, 0, 0, 0.5),
+    0 10px 28px rgba(0, 0, 10, 0.6),
+    0 20px 48px rgba(0, 0, 20, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
 .dd-mode-card:hover {
-  border-color: var(--text-muted);
+  transform: translateY(-7px);
+  box-shadow:
+    0 0 0 1px rgba(100, 216, 240, 0.18),
+    0 4px 8px  rgba(0, 0, 0, 0.5),
+    0 16px 36px rgba(0, 0, 20, 0.7),
+    0 36px 72px rgba(0, 0, 30, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+  border-color: rgba(100, 216, 240, 0.28);
 }
 
 .dd-mode-card:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
 .dd-mode-card-active {
   border: 2px solid var(--green);
-  background: var(--bg-card);
+  background: #1a1d2b;
   cursor: default;
 }
 
 .dd-mode-card-active:hover {
   border-color: var(--green);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 6px  rgba(0, 0, 0, 0.5),
+    0 10px 28px rgba(0, 0, 10, 0.6),
+    0 20px 48px rgba(0, 0, 20, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dd-mode-check {
@@ -789,6 +856,9 @@
   color: var(--text-primary);
   margin: 0;
   padding-right: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 6px;
 }
 
 .dd-mode-desc {
