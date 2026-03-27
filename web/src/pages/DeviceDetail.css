@@ -1136,8 +1136,9 @@
 .sc-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 20px;
+  padding: 0 4px;
+  margin-bottom: 20px;
 }
 
 @media (max-width: 700px) {
@@ -1146,10 +1147,163 @@
 
 /* ── Card ─────────────────────────────────────────────────── */
 .sc-card {
-  background: #1a1d2e;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #1a1d2b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   overflow: hidden;
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 6px  rgba(0, 0, 0, 0.5),
+    0 10px 28px rgba(0, 0, 10, 0.6),
+    0 20px 48px rgba(0, 0, 20, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.sc-card:hover {
+  transform: translateY(-7px);
+  box-shadow:
+    0 0 0 1px rgba(100, 216, 240, 0.18),
+    0 4px 8px  rgba(0, 0, 0, 0.5),
+    0 16px 36px rgba(0, 0, 20, 0.7),
+    0 36px 72px rgba(0, 0, 30, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+  border-color: rgba(100, 216, 240, 0.28);
+}
+
+.sc-card--gauge {
+  padding-top: 8px;
+}
+
+/* ── Arc gauge ───────────────────────────────────────────── */
+.arc-gauge {
+  position: relative;
+  width: 220px;
+  margin: 0 auto;
+}
+
+.arc-gauge-svg {
+  width: 100%;
+  display: block;
+}
+
+.arc-gauge-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.arc-gauge-number {
+  font-size: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.arc-gauge-unit {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.arc-gauge-btn {
+  position: absolute;
+  top: 80%;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  transform: translate(-50%, -50%);
+}
+
+.arc-gauge-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.arc-gauge-btn:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.arc-gauge-btn-minus {
+  left: 33%;
+}
+
+.arc-gauge-btn-plus {
+  left: 67%;
+}
+
+/* ── Light card (HA style) ───────────────────────────────── */
+.sc-card--light {
+  padding-top: 8px;
+}
+
+.sc-light-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.sc-light-orb {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  margin: 12px 0 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sc-light-orb:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.sc-light-orb--on {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+  box-shadow: 0 0 36px rgba(245, 158, 11, 0.25), 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.sc-light-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.sc-light-label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sc-light-state {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 4px;
+}
+
+.sc-light-state--on {
+  color: #f59e0b;
+}
+
+.sc-light-seg {
+  margin-bottom: 4px;
 }
 
 /* ── Card header ──────────────────────────────────────────── */
@@ -1409,7 +1563,7 @@
 @media (max-width: 768px) {
   .sc-save-panel {
     position: fixed;
-    bottom: calc(96px + env(safe-area-inset-bottom));
+    bottom: calc(72px + env(safe-area-inset-bottom));
     left: 0;
     right: 0;
     padding: 0 16px 8px;
@@ -1419,7 +1573,7 @@
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sc-save-panel--hidden {
-    transform: translateY(160%);
+    transform: none;
   }
   .sc-save-spacer {
     display: block;

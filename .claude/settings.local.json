@@ -61,7 +61,8 @@
       "Bash(grep:*)",
       "mcp__ide__getDiagnostics",
       "Bash(wc:*)",
-      "Bash(node --input-type=module --eval \":*)"
+      "Bash(node --input-type=module --eval \":*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

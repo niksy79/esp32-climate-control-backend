@@ -18,6 +18,7 @@ import {
   formatTemperature, formatHumidity, formatTimestamp,
   decodeToken, relativeTime,
 } from '../utils/index'
+import ArcGauge from '../components/ArcGauge'
 import './DeviceDetail.css'
 
 
@@ -181,7 +182,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
     const hum  = settings?.humidity ?? {}
     const fan  = settings?.fan ?? {}
     return {
-      temp_target:       temp.target        ?? 4,
+      temp_target:       Math.max(0, temp.target ?? 4),
       temp_offset:       temp.offset        ?? 0,
       hum_target:        hum.target         ?? 80,
       hum_offset:        hum.offset         ?? 0,
@@ -333,10 +334,6 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
   if (!settings) return <p className="dd-empty">Няма налични настройки.</p>
 
-  const tempPct = ((parseFloat(form.temp_target) + 10) / 40) * 100
-  const humPct  = ((parseFloat(form.hum_target)  - 30) / 65) * 100
-  const fanPct  = parseFloat(form.fan_speed)
-
   const isDirty = (() => {
     const init = initialForm()
     return (
@@ -390,28 +387,19 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
         <div className="sc-grid">
 
           {/* ── Температура ── */}
-          <div className="sc-card">
-            <div className="sc-card-header">
-              <span className="sc-card-icon" style={{ color: '#4fc3f7' }}>🌡️</span>
-              <span className="sc-card-title">Температура</span>
-            </div>
+          <div className="sc-card sc-card--gauge">
             <div className="sc-card-body">
-              <div className="sc-slider-section">
-                <div className="sc-slider-val" style={{ color: '#4fc3f7' }}>
-                  {parseFloat(form.temp_target).toFixed(1)}°C
-                </div>
-                <input
-                  type="range"
-                  className="sc-slider"
-                  min="-10" max="30" step="0.5"
-                  value={form.temp_target}
-                  onChange={(e) => setField('temp_target', e.target.value)}
-                  style={{ background: `linear-gradient(to right, #4fc3f7 ${tempPct}%, rgba(255,255,255,0.1) ${tempPct}%)` }}
-                />
-                <div className="sc-slider-bounds">
-                  <span>−10°C</span><span>30°C</span>
-                </div>
-              </div>
+              <ArcGauge
+                value={parseFloat(form.temp_target)}
+                min={0}
+                max={30}
+                step={0.5}
+                unit="°C"
+                color="#64d8f0"
+                label="Температура"
+                onDecrement={() => setField('temp_target', Math.max(0, parseFloat(form.temp_target) - 0.5).toFixed(1))}
+                onIncrement={() => setField('temp_target', Math.min(30, parseFloat(form.temp_target) + 0.5).toFixed(1))}
+              />
               <div className="sc-row sc-row--top">
                 <span className="sc-row-label">Отклонение</span>
                 <div className="sc-stepper">
@@ -426,28 +414,19 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
           </div>
 
           {/* ── Влажност ── */}
-          <div className="sc-card">
-            <div className="sc-card-header">
-              <span className="sc-card-icon" style={{ color: '#4dd0a0' }}>💧</span>
-              <span className="sc-card-title">Влажност</span>
-            </div>
+          <div className="sc-card sc-card--gauge">
             <div className="sc-card-body">
-              <div className="sc-slider-section">
-                <div className="sc-slider-val" style={{ color: '#4dd0a0' }}>
-                  {parseFloat(form.hum_target).toFixed(0)}%
-                </div>
-                <input
-                  type="range"
-                  className="sc-slider"
-                  min="30" max="95" step="1"
-                  value={form.hum_target}
-                  onChange={(e) => setField('hum_target', e.target.value)}
-                  style={{ background: `linear-gradient(to right, #4dd0a0 ${humPct}%, rgba(255,255,255,0.1) ${humPct}%)` }}
-                />
-                <div className="sc-slider-bounds">
-                  <span>30%</span><span>95%</span>
-                </div>
-              </div>
+              <ArcGauge
+                value={parseFloat(form.hum_target)}
+                min={30}
+                max={95}
+                step={1}
+                unit="%"
+                color="#2dd4b8"
+                label="Влажност"
+                onDecrement={() => setField('hum_target', Math.max(30, parseFloat(form.hum_target) - 1))}
+                onIncrement={() => setField('hum_target', Math.min(95, parseFloat(form.hum_target) + 1))}
+              />
               <div className="sc-row sc-row--top">
                 <span className="sc-row-label">Отклонение</span>
                 <div className="sc-stepper">
@@ -462,28 +441,19 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
           </div>
 
           {/* ── Вентилатор ── */}
-          <div className="sc-card">
-            <div className="sc-card-header">
-              <span className="sc-card-icon" style={{ color: '#a78bfa' }}>🌀</span>
-              <span className="sc-card-title">Вентилатор</span>
-            </div>
+          <div className="sc-card sc-card--gauge">
             <div className="sc-card-body">
-              <div className="sc-slider-section">
-                <div className="sc-slider-val" style={{ color: '#a78bfa' }}>
-                  {parseInt(form.fan_speed, 10)}%
-                </div>
-                <input
-                  type="range"
-                  className="sc-slider"
-                  min="0" max="100" step="5"
-                  value={form.fan_speed}
-                  onChange={(e) => setField('fan_speed', e.target.value)}
-                  style={{ background: `linear-gradient(to right, #a78bfa ${fanPct}%, rgba(255,255,255,0.1) ${fanPct}%)` }}
-                />
-                <div className="sc-slider-bounds">
-                  <span>0%</span><span>100%</span>
-                </div>
-              </div>
+              <ArcGauge
+                value={parseInt(form.fan_speed, 10)}
+                min={0}
+                max={100}
+                step={5}
+                unit="%"
+                color="#a78bfa"
+                label="Вентилатор"
+                onDecrement={() => setField('fan_speed', Math.max(0, parseInt(form.fan_speed, 10) - 5))}
+                onIncrement={() => setField('fan_speed', Math.min(100, parseInt(form.fan_speed, 10) + 5))}
+              />
               <div className="sc-row sc-row--top">
                 <span className="sc-row-label">Миксиране</span>
                 <label className="sc-toggle">
@@ -524,51 +494,45 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
           {/* ── Осветление (admin only) ── */}
           {isAdmin && (
-            <div className="sc-card">
-              <div className="sc-card-header">
-                <span className="sc-card-icon" style={{ color: '#f59e0b' }}>💡</span>
-                <span className="sc-card-title">Осветление</span>
-              </div>
-              <div className="sc-card-body">
-                <div className="sc-row">
-                  <span className="sc-row-label">Режим</span>
-                  <div className="sc-seg">
-                    <button
-                      type="button"
-                      className={`sc-seg-btn${lightMode === 1 ? ' sc-seg-btn--active' : ''}`}
-                      disabled={lightSaving}
-                      onClick={() => handleLightMode('auto')}
-                    >
-                      Автоматичен
-                    </button>
-                    <button
-                      type="button"
-                      className={`sc-seg-btn${lightMode === 0 ? ' sc-seg-btn--active' : ''}`}
-                      disabled={lightSaving}
-                      onClick={() => handleLightMode('manual')}
-                    >
-                      Ръчен
-                    </button>
-                  </div>
+            <div className="sc-card sc-card--light">
+              <div className="sc-card-body sc-light-body">
+                <button
+                  type="button"
+                  className={`sc-light-orb${lightState && lightMode === 0 ? ' sc-light-orb--on' : ''}`}
+                  disabled={lightSaving || lightMode !== 0}
+                  onClick={handleLightToggle}
+                  aria-label={lightState ? 'Изключи осветлението' : 'Включи осветлението'}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="sc-light-icon">
+                    <path d="M9 18h6"/>
+                    <path d="M10 22h4"/>
+                    <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+                  </svg>
+                </button>
+                <span className="sc-light-label">Осветление</span>
+                <span className={`sc-light-state${lightState && lightMode === 0 ? ' sc-light-state--on' : ''}`}>
+                  {lightMode === 1 ? 'Автоматичен' : lightState ? 'Включено' : 'Изключено'}
+                </span>
+                <div className="sc-seg sc-light-seg">
+                  <button
+                    type="button"
+                    className={`sc-seg-btn${lightMode === 1 ? ' sc-seg-btn--active' : ''}`}
+                    disabled={lightSaving}
+                    onClick={() => handleLightMode('auto')}
+                  >
+                    Авто
+                  </button>
+                  <button
+                    type="button"
+                    className={`sc-seg-btn${lightMode === 0 ? ' sc-seg-btn--active' : ''}`}
+                    disabled={lightSaving}
+                    onClick={() => handleLightMode('manual')}
+                  >
+                    Ръчен
+                  </button>
                 </div>
-                {lightMode === 0 && (
-                  <div className="sc-row sc-row--top">
-                    <span className="sc-row-label">Светлина</span>
-                    <label className="sc-toggle sc-toggle--amber">
-                      <input
-                        type="checkbox"
-                        checked={lightState}
-                        disabled={lightSaving}
-                        onChange={handleLightToggle}
-                      />
-                      <span className="sc-toggle-track">
-                        <span className="sc-toggle-thumb" />
-                      </span>
-                    </label>
-                  </div>
-                )}
                 {lightMsg && (
-                  <p className="sc-inline-msg" style={{ marginTop: 8 }}>
+                  <p className="sc-inline-msg" style={{ marginTop: 4 }}>
                     <span className={lightMsg.type === 'ok' ? 'sc-msg-ok' : 'sc-msg-err'}>
                       {lightMsg.text}
                     </span>
