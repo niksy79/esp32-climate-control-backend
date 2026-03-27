@@ -41,7 +41,27 @@
       "Bash(__NEW_LINE_16c81421fa41fdaa__ echo:*)",
       "Bash(__NEW_LINE_f9d4041eafb452e0__ echo:*)",
       "Bash(xargs -r ps -p)",
-      "Bash(find /root/projects/climate-backend -maxdepth 2 -name *.exe -o -maxdepth 2 -perm /111 -name main)"
+      "Bash(find /root/projects/climate-backend -maxdepth 2 -name *.exe -o -maxdepth 2 -perm /111 -name main)",
+      "Bash(kill 203790)",
+      "Bash(pkill -f './climate-backend')",
+      "Bash(pkill -f 'go run.*server')",
+      "Bash(docker run:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(tail:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//root/projects/climate-backend/**)",
+      "Bash(done)",
+      "Bash(TOKEN=\"eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJ1c2VyX2lkIjogIjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsICJ0ZW5hbnRfaWQiOiAidGVuYW50MSIsICJlbWFpbCI6ICJhZG1pbkB0ZW5hbnQxLmNvbSIsICJyb2xlIjogImFkbWluIiwgInN1YiI6ICIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDEiLCAiZXhwIjogOTk5OTk5OTk5OSwgImlhdCI6IDE3NzQ1NjMwNTF9.RNvvr8_ZvZkEO7xexTLg_uoNIeTwaJSdCW8I5a9QfDE\" echo \"=== 773C /current ===\" curl -sv -H \"Authorization: Bearer $TOKEN\" http://localhost:8080/api/tenants/tenant1/devices/773C/current)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAxIiwidGVuYW50X2lkIjoidGVuYW50MSIsImVtYWlsIjoiYWRtaW5AdGVuYW50MS5jb20iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDEiLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTc3NDU2MzA3MH0.N7bV6Bn76pInHnB9Apb_l9q2h3-LA-f40YC376kqVlc\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAxIiwidGVuYW50X2lkIjoidGVuYW50MSIsImVtYWlsIjoiYWRtaW5AdGVuYW50MS5jb20iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDEiLCJleHAiOjE3NzQ2NDk1MTMsImlhdCI6MTc3NDU2MzExM30.pg0u9ZdYlzqpOXo3RW29pCmvvXX5VBwql1P0PmezDso\")",
+      "Bash(HASH='$2a$10$6UU328auVpSkpZZuMrlte.wF6P77OfKW542EfgpDA39JdXXMzlh7y')",
+      "Bash(grep -v \"^$\")",
+      "Bash(docker image:*)",
+      "Bash(grep:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(wc:*)",
+      "Bash(node --input-type=module --eval \":*)"
     ]
   }
 }
