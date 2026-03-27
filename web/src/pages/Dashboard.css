@@ -6,10 +6,7 @@
 }
 
 .dashboard {
-  min-height: 100vh;
   background: var(--bg-page);
-  display: flex;
-  flex-direction: column;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text-body);
 }
@@ -121,7 +118,6 @@
 /* ── Main ─────────────────────────────────────────────────── */
 .dashboard-main {
   padding: 28px 28px 90px;
-  flex: 1;
 }
 
 /* ── States ───────────────────────────────────────────────── */
