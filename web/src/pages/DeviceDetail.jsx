@@ -51,8 +51,9 @@ const SEVERITY_CLASSES = ['sev-info', 'sev-warning', 'sev-error']
 // ── Tabs ──────────────────────────────────────────────────
 function Tabs({ active, onChange }) {
   const tabs = [
-    { key: 'history',     label: 'История' },
+    { key: 'monitor',     label: 'Мониторинг' },
     { key: 'settings',    label: 'Настройки' },
+    { key: 'history',     label: 'История' },
     { key: 'alerts',      label: 'Алерти' },
     { key: 'modes',       label: 'Режими' },
     { key: 'diagnostics', label: 'Диагностика' },
@@ -96,8 +97,8 @@ function ChartTooltip({ active, payload, label }) {
 
 const DAYS_OPTIONS = [1, 3, 7, 14, 31]
 
-// ── Tab: История ──────────────────────────────────────────
-function TabHistory({ current, status, history, days, setDays }) {
+// ── Tab: Мониторинг ────────────────────────────────────────
+function TabMonitor({ current, status }) {
   const compressorOn = status?.device_states?.compressor ?? false
   const fanOn = status?.device_states?.extra_fan ?? false
   const lightOn = status?.device_states?.light ?? false
@@ -107,6 +108,59 @@ function TabHistory({ current, status, history, days, setDays }) {
   const stateClass = SYSTEM_STATE_CLASSES[systemState] ?? ''
   const tempHigh = current?.temperature != null && current.temperature > TEMP_THRESHOLD
 
+  return (
+    <div className="dd-tab-content">
+      <div className="dd-stats-row">
+        <div className="dd-stat">
+          <span className="dd-stat-label">Температура</span>
+          <span className={`dd-stat-value${tempHigh ? ' temp-high' : ''}`}>
+            {formatTemperature(current?.temperature)}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Влажност</span>
+          <span className="dd-stat-value hum-value">
+            {formatHumidity(current?.humidity)}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Компресор</span>
+          <span className={`relay-badge ${compressorOn ? 'relay-on' : 'relay-off'}`}>
+            {compressorOn ? 'ON' : 'OFF'}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Вентилатор</span>
+          <span className={`relay-badge ${fanOn ? 'relay-on' : 'relay-off'}`}>
+            {fanOn ? 'ON' : 'OFF'}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Осветление</span>
+          <span className={`relay-badge ${lightOn ? 'relay-on' : 'relay-off'}`}>
+            {lightOn ? 'ON' : 'OFF'}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Нагревател</span>
+          <span className={`relay-badge ${heatingOn ? 'relay-on' : 'relay-off'}`}>
+            {heatingOn ? 'ON' : 'OFF'}
+          </span>
+        </div>
+        <div className="dd-stat">
+          <span className="dd-stat-label">Статус</span>
+          <span className={`state-badge state-${stateClass}`}>{stateLabel}</span>
+        </div>
+      </div>
+      <p className="dd-updated">
+        Обновено: {relativeTime(current?.timestamp)}
+      </p>
+    </div>
+  )
+}
+
+// ── Tab: История ──────────────────────────────────────────
+function TabHistory({ history, days, setDays }) {
   const chartData = [...(history ?? [])].reverse().map((r) => ({
     time: days > 1 ? formatChartDateTime(r.timestamp) : formatChartTime(r.timestamp),
     temperature: r.temperature ?? null,
@@ -180,53 +234,6 @@ function TabHistory({ current, status, history, days, setDays }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-      <div className="dd-stats-row">
-        <div className="dd-stat">
-          <span className="dd-stat-label">Температура</span>
-          <span className={`dd-stat-value${tempHigh ? ' temp-high' : ''}`}>
-            {formatTemperature(current?.temperature)}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Влажност</span>
-          <span className="dd-stat-value hum-value">
-            {formatHumidity(current?.humidity)}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Компресор</span>
-          <span className={`relay-badge ${compressorOn ? 'relay-on' : 'relay-off'}`}>
-            {compressorOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Вентилатор</span>
-          <span className={`relay-badge ${fanOn ? 'relay-on' : 'relay-off'}`}>
-            {fanOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Осветление</span>
-          <span className={`relay-badge ${lightOn ? 'relay-on' : 'relay-off'}`}>
-            {lightOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Нагревател</span>
-          <span className={`relay-badge ${heatingOn ? 'relay-on' : 'relay-off'}`}>
-            {heatingOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Статус</span>
-          <span className={`state-badge state-${stateClass}`}>{stateLabel}</span>
-        </div>
-      </div>
-
-      <p className="dd-updated">
-        Обновено: {relativeTime(current?.timestamp)}
-      </p>
     </div>
   )
 }
@@ -1052,7 +1059,7 @@ export default function DeviceDetail() {
   const [days, setDays] = useState(1)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [activeTab, setActiveTab] = useState('history')
+  const [activeTab, setActiveTab] = useState('monitor')
 
   // inline device-name edit
   const [nameEditing, setNameEditing] = useState(false)
@@ -1227,8 +1234,8 @@ export default function DeviceDetail() {
 
       <Tabs active={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'history' && (
-        <TabHistory current={current} status={status} history={history} days={days} setDays={setDays} />
+      {activeTab === 'monitor' && (
+        <TabMonitor current={current} status={status} />
       )}
       {activeTab === 'settings' && (
         <TabSettings
@@ -1240,6 +1247,9 @@ export default function DeviceDetail() {
           setDeviceTypeId={setDeviceTypeId}
           isAdmin={isAdmin}
         />
+      )}
+      {activeTab === 'history' && (
+        <TabHistory history={history} days={days} setDays={setDays} />
       )}
       {activeTab === 'alerts' && (
         <TabAlerts rules={rules} setRules={setRules} tenantId={tenantId} deviceId={deviceId} />
