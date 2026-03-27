@@ -46,6 +46,7 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
   const extraFanOn   = device.deviceStates?.extra_fan   ?? false
   const lightOn      = device.deviceStates?.light       ?? false
   const heatingOn    = device.deviceStates?.heating     ?? false
+  const isAutoLight  = device.lightMode === 'auto'
   const hasErrors    = device.hasErrors
   const name         = device.deviceName || device.deviceId
   const tempHigh     = !isOffline && device.temperature > TEMP_THRESHOLD
@@ -152,15 +153,16 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
         <div className="card-light-row">
           {isAdmin ? (
             <button
-              className={`card-light-toggle ${lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}
-              title={lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
+              className={`card-light-toggle ${isAutoLight ? 'card-light-toggle-auto' : lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}
+              title={isAutoLight ? 'Осветлението е в автоматичен режим' : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
+              disabled={isAutoLight}
               onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
             >
-              💡 Светлина&nbsp;<span className="light-state-label">{lightOn ? 'ON' : 'OFF'}</span>
+              💡 Светлина&nbsp;<span className="light-state-label">{isAutoLight ? 'AUTO' : lightOn ? 'ON' : 'OFF'}</span>
             </button>
           ) : (
-            <span className={`card-light-readonly ${lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}>
-              💡 Светлина&nbsp;<span className="light-state-label">{lightOn ? 'ON' : 'OFF'}</span>
+            <span className={`card-light-readonly ${isAutoLight ? 'card-light-toggle-auto' : lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}>
+              💡 Светлина&nbsp;<span className="light-state-label">{isAutoLight ? 'AUTO' : lightOn ? 'ON' : 'OFF'}</span>
             </span>
           )}
         </div>
@@ -234,6 +236,7 @@ export default function Dashboard() {
             alertFiring:   false,
             activeMode:    null,
             fanSpeed:      null,
+            lightMode:     null,
           }
           try {
             const [currentRes, statusRes] = await Promise.allSettled([
@@ -255,6 +258,7 @@ export default function Dashboard() {
               alertFiring:  status?.alert_firing               ?? false,
               activeMode:   status?.active_mode                ?? null,
               fanSpeed:     status?.fan_settings?.speed        ?? null,
+              lightMode:    status?.light_mode                 ?? null,
             }
           } catch (err) {
             console.error(`fetchAll: device ${deviceId}:`, err)

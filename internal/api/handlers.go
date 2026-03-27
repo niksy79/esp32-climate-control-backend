@@ -168,6 +168,11 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 	s, _ := h.svc.Status.Get(tenantID, deviceID)
 	dc, _ := h.svc.Control.GetControl(tenantID, deviceID)
 	fs, _ := h.svc.Fan.GetSettings(tenantID, deviceID)
+	_, _, _, ls, _, _ := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
+	lightModeStr := "manual"
+	if ls.Mode == models.LightModeAuto {
+		lightModeStr = "auto"
+	}
 	jsonResp(w, map[string]any{
 		"device_name":      deviceName,
 		"system_status":    s,
@@ -176,6 +181,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"device_states":    dc.DeviceStates,
 		"compressor_stats": dc.CompressorStats,
 		"fan_settings":     fs,
+		"light_mode":       lightModeStr,
 		"has_errors":       h.svc.Errors.HasActiveErrors(tenantID, deviceID),
 		"critical_errors":  h.svc.Errors.HasCriticalErrors(tenantID, deviceID),
 		"alert_firing":     h.svc.Alerts.HasRecentlyFired(tenantID, deviceID),
@@ -419,12 +425,15 @@ func (h *Handler) handleSetLight(w http.ResponseWriter, r *http.Request) {
 			log.Printf("api: mqtt publish light %s/%s: %v", tenantID, deviceID, err)
 		}
 	}
-	if body.Mode != nil {
-		modeInt := models.LightModeManual
-		if *body.Mode == "auto" {
-			modeInt = models.LightModeAuto
+	if body.Mode != nil || body.State != nil {
+		_, _, _, ls, _, _ := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
+		if body.Mode != nil {
+			if *body.Mode == "auto" {
+				ls.Mode = models.LightModeAuto
+			} else {
+				ls.Mode = models.LightModeManual
+			}
 		}
-		ls := models.LightSettings{Mode: modeInt}
 		if body.State != nil {
 			ls.State = *body.State
 		}

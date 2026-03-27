@@ -539,6 +539,19 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+/* AUTO state — muted blue-gray, disabled */
+.card-light-toggle-auto {
+  background: rgba(100, 149, 237, 0.15);
+  color: rgba(100, 149, 237, 0.7);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  cursor: default;
+  opacity: 0.85;
+}
+.card-light-toggle:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
 .light-state-label {
   font-size: 0.6875rem;
   font-weight: 700;
