@@ -467,40 +467,77 @@
   opacity: 1;
 }
 
-/* ── Light toggle button (card) ───────────────────────────── */
-.card-light-btn {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 0.6875rem;
+/* ── Light toggle row ─────────────────────────────────────── */
+.card-light-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
+}
+
+/* Shared pill shape for both button and read-only span */
+.card-light-toggle,
+.card-light-readonly {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.75rem;
   font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 
-.card-light-on {
-  background: rgba(234, 179, 8, 0.12);
-  color: #facc15;
-  border-color: rgba(234, 179, 8, 0.3);
+/* Button-specific */
+.card-light-toggle {
+  cursor: pointer;
+  border: none;
 }
 
-.card-light-off {
-  background: var(--bg-raised);
-  color: var(--text-muted);
+.card-light-toggle:hover {
+  filter: brightness(1.12);
 }
 
-.card-light-btn:disabled {
+.card-light-toggle:active {
+  transform: scale(0.97);
+}
+
+/* Read-only (non-admin) */
+.card-light-readonly {
   cursor: default;
-  opacity: 0.6;
+  opacity: 0.7;
+}
+
+/* ON state — warm amber */
+.card-light-toggle-on {
+  background: #f59e0b;
+  color: #1a1100;
+}
+
+/* OFF state — dark outlined */
+.card-light-toggle-off {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.light-state-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 /* ── Light theme overrides ────────────────────────────────── */
-[data-theme="light"] .card-light-on {
-  color: #a16207;
-  background: rgba(234, 179, 8, 0.1);
-  border-color: rgba(234, 179, 8, 0.3);
+[data-theme="light"] .card-light-toggle-on {
+  background: #f59e0b;
+  color: #1a1100;
+}
+
+[data-theme="light"] .card-light-toggle-off {
+  color: rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 /* temp-high for metric-value context */
@@ -519,5 +556,30 @@
 @media (min-width: 1200px) {
   .device-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── Mobile card visibility ───────────────────────────────── */
+@media (max-width: 768px) {
+  .device-card {
+    background: #161824;
+    border-color: rgba(255, 255, 255, 0.13);
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .card-body {
+    background: #161824;
+  }
+
+  .card-photo-gradient {
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.04)  0%,
+      rgba(0, 0, 0, 0.08)  30%,
+      rgba(22, 24, 36, 0.75) 65%,
+      #161824              100%
+    );
   }
 }

@@ -142,19 +142,28 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
           </div>
         </div>
 
-        {/* Relay badges row */}
+        {/* Relay indicator badges */}
         <div className="card-relays">
           <RelayBadge label="Компресор" on={compressorOn} />
           <RelayBadge label="Вентилатор" on={extraFanOn} />
           <RelayBadge label="Нагревател" on={heatingOn} />
-          <button
-            className={`card-light-btn ${lightOn ? 'card-light-on' : 'card-light-off'}`}
-            disabled={!isAdmin}
-            title={!isAdmin ? undefined : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
-            onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
-          >
-            Светлина {lightOn ? 'ON' : 'OFF'}
-          </button>
+        </div>
+
+        {/* Light toggle — full-width row, visually distinct from indicators */}
+        <div className="card-light-row">
+          {isAdmin ? (
+            <button
+              className={`card-light-toggle ${lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}
+              title={lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
+              onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
+            >
+              💡 Светлина&nbsp;<span className="light-state-label">{lightOn ? 'ON' : 'OFF'}</span>
+            </button>
+          ) : (
+            <span className={`card-light-readonly ${lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}>
+              💡 Светлина&nbsp;<span className="light-state-label">{lightOn ? 'ON' : 'OFF'}</span>
+            </span>
+          )}
         </div>
 
         {/* Footer */}
