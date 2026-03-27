@@ -262,6 +262,30 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
   const [saveMsg, setSaveMsg] = useState(null) // { type: 'ok'|'err', text }
   const successTimer = useRef(null)
 
+  // Save panel scroll-hide
+  const [panelVisible, setPanelVisible] = useState(true)
+  const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0)
+  const inactivityTimer = useRef(null)
+
+  useEffect(() => {
+    function onScroll() {
+      const current = window.scrollY
+      if (current > lastScrollY.current + 4) {
+        setPanelVisible(false)
+      } else if (current < lastScrollY.current - 4) {
+        setPanelVisible(true)
+      }
+      lastScrollY.current = current
+      clearTimeout(inactivityTimer.current)
+      inactivityTimer.current = setTimeout(() => setPanelVisible(true), 1500)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      clearTimeout(inactivityTimer.current)
+    }
+  }, [])
+
   // Device type local state
   const [selectedType, setSelectedType] = useState(deviceTypeId ?? '')
   const [typeSaving, setTypeSaving] = useState(false)
@@ -362,6 +386,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
         },
       })
       setSaveMsg({ type: 'ok', text: 'Настройките са запазени' })
+      setPanelVisible(true)
       clearTimeout(successTimer.current)
       successTimer.current = setTimeout(() => setSaveMsg(null), 3000)
     } catch (err) {
@@ -620,15 +645,18 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
         </div>
 
-        {saveMsg && (
-          <p className={`dd-save-msg ${saveMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
-            {saveMsg.text}
-          </p>
-        )}
+        <div className="sc-save-spacer" />
 
-        <button className="sc-save-btn" type="submit" disabled={saving || !isDirty}>
-          {saving ? 'Запазване...' : 'Запази настройките'}
-        </button>
+        <div className={`sc-save-panel${panelVisible ? '' : ' sc-save-panel--hidden'}`}>
+          {saveMsg && (
+            <p className={`dd-save-msg ${saveMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
+              {saveMsg.text}
+            </p>
+          )}
+          <button className="sc-save-btn" type="submit" disabled={saving || !isDirty}>
+            {saving ? 'Запазване...' : 'Запази настройките'}
+          </button>
+        </div>
       </form>
     </div>
   )

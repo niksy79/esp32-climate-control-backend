@@ -1496,6 +1496,28 @@
 .sc-msg-ok  { color: var(--green-text); }
 .sc-msg-err { color: var(--red-text); }
 
+/* ── Save panel (fixed on mobile, in-flow on desktop) ─────── */
+.sc-save-spacer { display: none; }
+
+@media (max-width: 768px) {
+  .sc-save-panel {
+    position: fixed;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
+    padding: 0 16px 8px;
+    z-index: 90;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sc-save-panel--hidden {
+    transform: translateY(160%);
+  }
+  .sc-save-spacer {
+    display: block;
+    height: 80px;
+  }
+}
+
 /* ── Save button ──────────────────────────────────────────── */
 .sc-save-btn {
   width: 100%;
