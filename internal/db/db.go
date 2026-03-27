@@ -270,7 +270,7 @@ func (d *DB) EnsureDevice(ctx context.Context, tenantID, deviceID string) error 
 	_, err := d.pool.Exec(ctx, `
 		INSERT INTO devices (tenant_id, device_id)
 		VALUES ($1, $2)
-		ON CONFLICT (tenant_id, device_id) DO NOTHING`,
+		ON CONFLICT (tenant_id, device_id) DO UPDATE SET deleted_at = NULL`,
 		tenantID, deviceID,
 	)
 	return err
@@ -286,7 +286,8 @@ func (d *DB) UpsertDevice(ctx context.Context, dev models.DeviceIdentity) error 
 			hostname    = EXCLUDED.hostname,
 			ip_address  = EXCLUDED.ip_address,
 			wifi_state  = EXCLUDED.wifi_state,
-			last_seen   = NOW()`,
+			last_seen   = NOW(),
+			deleted_at  = NULL`,
 		dev.TenantID, dev.DeviceID, dev.DeviceName, dev.Hostname, dev.IPAddress, int(dev.WiFiState),
 	)
 	return err
