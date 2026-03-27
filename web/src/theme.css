@@ -1,0 +1,73 @@
+/* ── Global theme tokens ────────────────────────────────────
+   Applied on :root for dark (default) and overridden by
+   [data-theme="light"] set on <html> by useTheme hook.
+──────────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-page:    #0f1117;
+  --bg-surface: #13151f;
+  --bg-card:    #1a1d27;
+  --bg-input:   #0f1117;
+  --bg-raised:  #1e2130;
+  --bg-log:     #0b0d14;
+
+  /* Borders */
+  --border:        #2a2d3a;
+  --border-subtle: #1e2130;
+
+  /* Text — slightly brighter than before for better readability */
+  --text-primary:   #f8fafc;
+  --text-body:      #e8edf3;
+  --text-secondary: #a8b4c4;
+  --text-muted:     #64748b;
+  --text-dim:       #475569;
+
+  /* Accent */
+  --accent:       #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: #60a5fa;
+  --accent-dim:   #93c5fd;
+
+  /* Semantic colours — same hue, adjusted for dark bg */
+  --green:      #22c55e;
+  --green-text: #4ade80;
+  --red:        #ef4444;
+  --red-text:   #f87171;
+  --orange:     #fb923c;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-page:    #f0f4f8;
+  --bg-surface: #ffffff;
+  --bg-card:    #ffffff;
+  --bg-input:   #f8fafc;
+  --bg-raised:  #f1f5f9;
+  --bg-log:     #1e293b;
+
+  /* Borders */
+  --border:        #e2e8f0;
+  --border-subtle: #f1f5f9;
+
+  /* Text */
+  --text-primary:   #0f172a;
+  --text-body:      #1e293b;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+  --text-dim:       #cbd5e1;
+
+  /* Accent */
+  --accent-light: #1d4ed8;
+  --accent-dim:   #bfdbfe;
+
+  /* Semantic colours — darker for light bg */
+  --green-text: #16a34a;
+  --red-text:   #dc2626;
+  --orange:     #ea580c;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+}

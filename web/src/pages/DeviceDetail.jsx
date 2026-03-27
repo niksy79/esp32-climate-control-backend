@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../hooks/useTheme'
 import {
   listDevices, getCurrentReading, getDeviceStatus, getHistory, getMetricHistory,
   getSettings, saveSettings, switchMode, setLight, listAlertRules, createAlertRule, deleteAlertRule,
@@ -1045,6 +1046,7 @@ export default function DeviceDetail() {
 
   const claims = token ? decodeToken(token) : null
   const tenantId = claims?.tenant_id ?? null
+  const { theme, toggle: toggleTheme } = useTheme()
 
   const [current, setCurrent] = useState(null)
   const [status, setStatus] = useState(null)
@@ -1229,6 +1231,11 @@ export default function DeviceDetail() {
           <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
             {alertActive ? 'Алерт' : 'OK'}
           </span>
+        </div>
+        <div className="dd-header-right">
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Смени темата">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
         </div>
       </header>
 

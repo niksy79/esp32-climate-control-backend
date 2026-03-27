@@ -7,11 +7,11 @@
 
 .dashboard {
   min-height: 100vh;
-  background: #0f1117;
+  background: var(--bg-page);
   display: flex;
   flex-direction: column;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: #e2e8f0;
+  color: var(--text-body);
 }
 
 /* ── Header ───────────────────────────────────────────────── */
@@ -20,8 +20,8 @@
   align-items: center;
   justify-content: flex-end;
   padding: 10px 20px;
-  background: #13151f;
-  border-bottom: 1px solid #2a2d3a;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -30,15 +30,15 @@
 /* ── Hero ─────────────────────────────────────────────────── */
 .dashboard-hero {
   padding: 28px 28px 20px;
-  border-bottom: 1px solid #2a2d3a;
-  background: #13151f;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
 }
 
 .dashboard-title {
   margin: 0 0 8px;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--text-primary);
   letter-spacing: 0.01em;
 }
 
@@ -48,7 +48,7 @@
   gap: 6px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-secondary);
   user-select: none;
 }
 
@@ -60,15 +60,16 @@
 }
 
 .live-dot-on {
-  background: #22c55e;
+  background: var(--green);
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
 }
 
 .live-dot-off {
-  background: #ef4444;
+  background: var(--red);
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
 }
 
+/* ── Header actions ───────────────────────────────────────── */
 .header-actions {
   display: flex;
   align-items: center;
@@ -78,37 +79,55 @@
 .profile-btn {
   padding: 7px 16px;
   background: transparent;
-  border: 1px solid #2a2d3a;
+  border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 .profile-btn:hover {
-  border-color: #475569;
-  color: #e2e8f0;
-  background: #1e2130;
+  border-color: var(--text-muted);
+  color: var(--text-body);
+  background: var(--bg-raised);
 }
 
 .logout-btn {
   padding: 7px 16px;
   background: transparent;
-  border: 1px solid #2a2d3a;
+  border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 .logout-btn:hover {
-  border-color: #475569;
-  color: #e2e8f0;
-  background: #1e2130;
+  border-color: var(--text-muted);
+  color: var(--text-body);
+  background: var(--bg-raised);
+}
+
+/* ── Theme toggle ─────────────────────────────────────────── */
+.theme-toggle-btn {
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  color: var(--text-secondary);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--text-muted);
+  background: var(--bg-raised);
 }
 
 /* ── Main ─────────────────────────────────────────────────── */
@@ -120,13 +139,13 @@
 /* ── States ───────────────────────────────────────────────── */
 .state-msg {
   text-align: center;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.9375rem;
   margin-top: 80px;
 }
 
 .error-msg {
-  color: #f87171;
+  color: var(--red-text);
 }
 
 /* ── Grid ─────────────────────────────────────────────────── */
@@ -162,32 +181,32 @@
 
 /* ── Device card ──────────────────────────────────────────── */
 .device-card {
-  background: #1a1d27;
-  border: 1px solid #2a2d3a;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card);
   padding: 20px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
-  transition: border-color 0.15s;
 }
 
 .device-card:hover {
-  border-color: #3d4155;
+  border-color: var(--text-muted);
 }
 
 .device-card:focus-visible {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 /* ── Card header ──────────────────────────────────────────── */
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
@@ -202,21 +221,21 @@
 .card-title {
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #f1f5f9;
-  letter-spacing: 0.03em;
+  color: var(--text-primary);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .card-device-type {
   font-size: 0.6875rem;
+  color: var(--text-muted);
   font-weight: 500;
-  color: #475569;
   letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-/* Alert badge (top-right of card) */
+/* ── Alert badge ──────────────────────────────────────────── */
 .alert-badge {
   flex-shrink: 0;
   padding: 2px 9px;
@@ -229,49 +248,51 @@
 
 .alert-active {
   background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  color: var(--red-text);
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .alert-warning {
   background: rgba(251, 146, 60, 0.12);
-  color: #fb923c;
+  color: var(--orange);
   border: 1px solid rgba(251, 146, 60, 0.3);
 }
 
 .alert-ok {
   background: rgba(34, 197, 94, 0.1);
-  color: #4ade80;
+  color: var(--green-text);
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
-/* ── Readings ─────────────────────────────────────────────── */
+/* ── Card readings ────────────────────────────────────────── */
 .card-readings {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .reading-temp {
-  font-size: 2.125rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--text-primary);
   line-height: 1;
-  letter-spacing: -0.01em;
 }
 
 .reading-temp.temp-high {
-  color: #f87171;
+  color: var(--red-text);
 }
 
 .reading-hum {
   font-size: 1rem;
-  font-weight: 500;
-  color: #64748b;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-/* Offline */
+.reading-stale {
+  opacity: 0.55;
+}
+
+/* ── Offline row ──────────────────────────────────────────── */
 .offline-row {
   display: flex;
   align-items: center;
@@ -279,25 +300,25 @@
 }
 
 .offline-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: rgba(100, 116, 139, 0.15);
-  color: #64748b;
-  border: 1px solid rgba(100, 116, 139, 0.25);
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 
 .offline-dash {
-  color: #334155;
+  color: var(--text-muted);
 }
 
 /* ── Relay badges ─────────────────────────────────────────── */
 .relay-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
+  align-items: center;
 }
 
 .relay-badge {
@@ -311,42 +332,34 @@
 
 .relay-on {
   background: rgba(34, 197, 94, 0.12);
-  color: #4ade80;
+  color: var(--green-text);
   border: 1px solid rgba(34, 197, 94, 0.25);
 }
 
 .relay-off {
-  background: rgba(30, 33, 48, 0.8);
-  color: #475569;
-  border: 1px solid #2a2d3a;
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
 
-/* ── System state ─────────────────────────────────────────── */
+/* ── Card state ───────────────────────────────────────────── */
 .card-state {
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #475569;
-  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
-/* ── Stale signal ─────────────────────────────────────────── */
-.reading-stale {
-  color: #facc15 !important;
-}
-
-.stale-indicator {
-  color: #facc15;
-  margin-left: 4px;
-}
-
-/* ── Footer ───────────────────────────────────────────────── */
+/* ── Card footer ──────────────────────────────────────────── */
 .card-footer {
   font-size: 0.6875rem;
-  color: #334155;
+  color: var(--text-dim);
   margin-top: auto;
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.stale-indicator {
+  color: var(--text-muted);
 }
 
 .card-delete-btn {
@@ -363,40 +376,38 @@
   opacity: 1;
 }
 
-/* ── Light toggle button ─────────────────────────────────── */
+/* ── Light toggle button (card) ───────────────────────────── */
 .card-light-btn {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 6px;
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
   cursor: pointer;
-  border: none;
-  transition: background 0.15s, opacity 0.15s;
+  border: 1px solid var(--border);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
 .card-light-on {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.card-light-on:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.25);
+  background: rgba(234, 179, 8, 0.12);
+  color: #facc15;
+  border-color: rgba(234, 179, 8, 0.3);
 }
 
 .card-light-off {
-  background: rgba(30, 33, 48, 0.8);
-  color: #475569;
-  border: 1px solid #2a2d3a;
-}
-
-.card-light-off:hover:not(:disabled) {
-  color: #94a3b8;
-  border-color: #3a3d4a;
+  background: var(--bg-raised);
+  color: var(--text-muted);
 }
 
 .card-light-btn:disabled {
   cursor: default;
+  opacity: 0.6;
+}
+
+/* ── Light theme overrides ────────────────────────────────── */
+[data-theme="light"] .card-light-on {
+  color: #a16207;
+  background: rgba(234, 179, 8, 0.1);
+  border-color: rgba(234, 179, 8, 0.3);
 }

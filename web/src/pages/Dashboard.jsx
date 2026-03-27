@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useTheme } from '../hooks/useTheme'
 import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight, deleteDevice } from '../api/index'
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
@@ -263,6 +264,7 @@ export default function Dashboard() {
   }
 
   const isLive = readyState === WebSocket.OPEN
+  const { theme, toggle: toggleTheme } = useTheme()
 
   return (
     <div className="dashboard">
@@ -272,6 +274,9 @@ export default function Dashboard() {
             <button className="profile-btn" onClick={() => navigate('/users')}>Потребители</button>
           )}
           <button className="profile-btn" onClick={() => navigate('/profile')}>Профил</button>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Смени темата">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button className="logout-btn" onClick={handleLogout}>Изход</button>
         </div>
       </header>

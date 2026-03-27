@@ -1,6 +1,6 @@
 .profile-page {
   min-height: 100vh;
-  background: #0f1117;
+  background: var(--bg-page);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -8,8 +8,8 @@
 }
 
 .profile-card {
-  background: #13151f;
-  border: 1px solid #2a2d3a;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 32px 36px;
   width: 100%;
@@ -25,9 +25,9 @@
 
 .profile-back-btn {
   background: transparent;
-  border: 1px solid #2a2d3a;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 0.8125rem;
   padding: 6px 12px;
@@ -35,42 +35,25 @@
 }
 
 .profile-back-btn:hover {
-  border-color: #475569;
-  color: #e2e8f0;
+  border-color: var(--text-muted);
+  color: var(--text-body);
 }
 
 .profile-section-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin: 0 0 20px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .profile-success {
-  background: #14532d;
-  border: 1px solid #166534;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
   border-radius: 6px;
-  color: #86efac;
+  color: var(--green-text);
   font-size: 0.875rem;
   padding: 10px 14px;
   margin-bottom: 16px;
-}
-
-/* Override Login.css colours for dark background */
-.profile-card .login-label {
-  color: #94a3b8;
-}
-
-.profile-card .login-input {
-  background: #1e2130;
-  border-color: #2a2d3a;
-  color: #e2e8f0;
-}
-
-.profile-card .login-input:focus {
-  border-color: #3b82f6;
-  background: #1e2130;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
