@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { changePassword } from '../api/index'
 import './Login.css'
 import './Profile.css'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
   const [form, setForm] = useState({ old_password: '', new_password: '', confirm: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -97,6 +104,12 @@ export default function Profile() {
             {loading ? 'Запазване...' : 'Смени паролата'}
           </button>
         </form>
+
+        <div className="profile-logout-section">
+          <button className="profile-logout-btn" onClick={handleLogout}>
+            Изход
+          </button>
+        </div>
       </div>
     </div>
   )

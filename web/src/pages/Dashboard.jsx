@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { useTheme } from '../hooks/useTheme'
 import { listDevices, getCurrentReading, getDeviceStatus, getDeviceTypes, setLight, deleteDevice } from '../api/index'
 import { formatTemperature, formatHumidity, decodeToken, relativeTime } from '../utils/index'
 import './Dashboard.css'
@@ -191,8 +190,9 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 }
 
 export default function Dashboard() {
-  const { token, logout } = useAuth()
+  const { token } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const claims   = token ? decodeToken(token) : null
   const tenantId = claims?.tenant_id ?? null
@@ -327,36 +327,29 @@ export default function Dashboard() {
       .catch((err) => console.error('light toggle:', err.response?.status, err.response?.data))
   }
 
-  function handleLogout() {
-    logout()
-    navigate('/login')
-  }
-
   const isLive = readyState === WebSocket.OPEN
-  const { theme, toggle: toggleTheme } = useTheme()
+  const [toast, setToast] = useState('')
+
+  function showComingSoon() {
+    setToast('Скоро')
+    setTimeout(() => setToast(''), 2000)
+  }
 
   return (
     <div className="dashboard">
       <header className="dashboard-header">
+        <div className="header-spacer" />
+        <div className="header-center">
+          <h1 className="dashboard-title">Дашборд</h1>
+          <span className="live-indicator">
+            <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
+            {isLive ? 'Свързан' : 'Без връзка'}
+          </span>
+        </div>
         <div className="header-actions">
-          {isAdmin && (
-            <button className="profile-btn" onClick={() => navigate('/users')}>Потребители</button>
-          )}
           <button className="profile-btn" onClick={() => navigate('/profile')}>Профил</button>
-          <button className="theme-toggle-btn" onClick={toggleTheme} title="Смени темата">
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
-          <button className="logout-btn" onClick={handleLogout}>Изход</button>
         </div>
       </header>
-
-      <div className="dashboard-hero">
-        <h1 className="dashboard-title">Дашборд</h1>
-        <span className="live-indicator">
-          <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
-          {isLive ? 'Свързан' : 'Без връзка'}
-        </span>
-      </div>
 
       <main className="dashboard-main">
         {loading && <p className="state-msg">Зареждане на устройствата...</p>}
@@ -388,6 +381,46 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {toast && <div className="bottom-toast">{toast}</div>}
+
+      <nav className="bottom-nav">
+        <button
+          className={`bottom-nav-item${location.pathname === '/' ? ' bottom-nav-active' : ''}`}
+          onClick={() => navigate('/')}
+        >
+          <span className="bottom-nav-icon">🏠</span>
+          <span className="bottom-nav-label">Начало</span>
+        </button>
+
+        {isAdmin && (
+          <button
+            className={`bottom-nav-item${location.pathname === '/users' ? ' bottom-nav-active' : ''}`}
+            onClick={() => navigate('/users')}
+          >
+            <span className="bottom-nav-icon">👥</span>
+            <span className="bottom-nav-label">Потребители</span>
+          </button>
+        )}
+
+        <button className="bottom-nav-item" onClick={showComingSoon}>
+          <span className="bottom-nav-icon">🔔</span>
+          <span className="bottom-nav-label">Известия</span>
+        </button>
+
+        <button className="bottom-nav-item" onClick={showComingSoon}>
+          <span className="bottom-nav-icon">⚙️</span>
+          <span className="bottom-nav-label">Настройки</span>
+        </button>
+
+        <button
+          className={`bottom-nav-item${location.pathname === '/profile' ? ' bottom-nav-active' : ''}`}
+          onClick={() => navigate('/profile')}
+        >
+          <span className="bottom-nav-icon">👤</span>
+          <span className="bottom-nav-label">Профил</span>
+        </button>
+      </nav>
     </div>
   )
 }
