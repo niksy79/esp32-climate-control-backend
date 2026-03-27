@@ -267,13 +267,6 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="header-left">
-          <h1 className="dashboard-title">Climate Control</h1>
-          <span className="live-indicator">
-            <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
-            Живо
-          </span>
-        </div>
         <div className="header-actions">
           {isAdmin && (
             <button className="profile-btn" onClick={() => navigate('/users')}>Потребители</button>
@@ -282,6 +275,14 @@ export default function Dashboard() {
           <button className="logout-btn" onClick={handleLogout}>Изход</button>
         </div>
       </header>
+
+      <div className="dashboard-hero">
+        <h1 className="dashboard-title">Дашборд</h1>
+        <span className="live-indicator">
+          <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
+          {isLive ? 'Свързан' : 'Без връзка'}
+        </span>
+      </div>
 
       <main className="dashboard-main">
         {loading && <p className="state-msg">Зареждане на устройствата...</p>}
