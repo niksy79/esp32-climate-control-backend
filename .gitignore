@@ -23,3 +23,6 @@ CLAUDE-web.md
 # OS
 .DS_Store
 Thumbs.db
+
+# Device logs
+logs/
