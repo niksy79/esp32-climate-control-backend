@@ -333,7 +333,7 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <div className="header-spacer" />
         <div className="header-center">
-          <h1 className="dashboard-title">Дашборд</h1>
+          <h1 className="dashboard-title">MerakOne - smart control</h1>
           <span className="live-indicator">
             <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
             {isLive ? 'Свързан' : 'Без връзка'}

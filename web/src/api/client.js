@@ -1,5 +1,11 @@
 import axios from 'axios'
 
+let _onTokenRefreshed = null
+
+export function setOnTokenRefreshed(cb) {
+  _onTokenRefreshed = cb
+}
+
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
 })
@@ -42,9 +48,10 @@ client.interceptors.response.use(
 
     original._retry = true
     try {
-      const { data } = await client.post('/api/auth/refresh', { token: refreshToken })
+      const { data } = await client.post('/api/auth/refresh', { refresh_token: refreshToken })
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('refresh_token', data.refresh_token)
+      if (_onTokenRefreshed) _onTokenRefreshed(data.access_token)
       original.headers.Authorization = `Bearer ${data.access_token}`
       return client(original)
     } catch {
