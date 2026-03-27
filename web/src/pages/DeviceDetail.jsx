@@ -20,9 +20,6 @@ import {
 } from '../utils/index'
 import './DeviceDetail.css'
 
-const SYSTEM_STATE_LABELS = ['Нормален', 'Предупреждение', 'Грешка', 'Безопасен режим', 'Резервен']
-const SYSTEM_STATE_CLASSES = ['normal', 'warning', 'error', 'safe-mode', 'fallback']
-const TEMP_THRESHOLD = 8.0
 
 function formatChartTime(ts) {
   if (!ts) return ''
@@ -52,7 +49,6 @@ const SEVERITY_CLASSES = ['sev-info', 'sev-warning', 'sev-error']
 // ── Tabs ──────────────────────────────────────────────────
 function Tabs({ active, onChange }) {
   const tabs = [
-    { key: 'monitor',     label: 'Мониторинг' },
     { key: 'settings',    label: 'Настройки' },
     { key: 'history',     label: 'История' },
     { key: 'alerts',      label: 'Алерти' },
@@ -99,67 +95,6 @@ function ChartTooltip({ active, payload, label }) {
 const DAYS_OPTIONS = [1, 3, 7, 14, 31]
 
 // ── Tab: Мониторинг ────────────────────────────────────────
-function TabMonitor({ current, status }) {
-  const compressorOn = status?.device_states?.compressor ?? false
-  const fanOn = status?.device_states?.extra_fan ?? false
-  const lightOn = status?.device_states?.light ?? false
-  const heatingOn = status?.device_states?.heating ?? false
-  const systemState = status?.system_status?.state ?? null
-  const stateLabel = SYSTEM_STATE_LABELS[systemState] ?? 'Неизвестно'
-  const stateClass = SYSTEM_STATE_CLASSES[systemState] ?? ''
-  const tempHigh = current?.temperature != null && current.temperature > TEMP_THRESHOLD
-
-  return (
-    <div className="dd-tab-content">
-      <div className="dd-stats-row">
-        <div className="dd-stat">
-          <span className="dd-stat-label">Температура</span>
-          <span className={`dd-stat-value${tempHigh ? ' temp-high' : ''}`}>
-            {formatTemperature(current?.temperature)}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Влажност</span>
-          <span className="dd-stat-value hum-value">
-            {formatHumidity(current?.humidity)}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Компресор</span>
-          <span className={`relay-badge ${compressorOn ? 'relay-on' : 'relay-off'}`}>
-            {compressorOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Вентилатор</span>
-          <span className={`relay-badge ${fanOn ? 'relay-on' : 'relay-off'}`}>
-            {fanOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Осветление</span>
-          <span className={`relay-badge ${lightOn ? 'relay-on' : 'relay-off'}`}>
-            {lightOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Нагревател</span>
-          <span className={`relay-badge ${heatingOn ? 'relay-on' : 'relay-off'}`}>
-            {heatingOn ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat-label">Статус</span>
-          <span className={`state-badge state-${stateClass}`}>{stateLabel}</span>
-        </div>
-      </div>
-      <p className="dd-updated">
-        Обновено: {relativeTime(current?.timestamp)}
-      </p>
-    </div>
-  )
-}
-
 // ── Tab: История ──────────────────────────────────────────
 function TabHistory({ history, days, setDays }) {
   const chartData = [...(history ?? [])].reverse().map((r) => ({
@@ -1148,7 +1083,7 @@ export default function DeviceDetail() {
   const [days, setDays] = useState(1)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [activeTab, setActiveTab] = useState('monitor')
+  const [activeTab, setActiveTab] = useState('settings')
 
   // inline device-name edit
   const [nameEditing, setNameEditing] = useState(false)
@@ -1328,9 +1263,6 @@ export default function DeviceDetail() {
 
       <Tabs active={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'monitor' && (
-        <TabMonitor current={current} status={status} />
-      )}
       {activeTab === 'settings' && (
         <TabSettings
           settings={settings}
