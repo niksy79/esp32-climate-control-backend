@@ -317,8 +317,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
         fan: {
           speed:            parseInt(form.fan_speed, 10),
           mixing_enabled:   form.mixing_enabled,
-          mixing_interval:  parseInt(form.mixing_interval, 10) * 60,
-          mixing_duration:  parseInt(form.mixing_duration, 10) * 60,
+          mixing_interval_s:  parseInt(form.mixing_interval, 10) * 60,
+          mixing_duration_s:  parseInt(form.mixing_duration, 10) * 60,
         },
       })
       setSaveMsg({ type: 'ok', text: 'Настройките са запазени' })

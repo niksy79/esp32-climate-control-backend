@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"climate-backend/internal/alerts"
@@ -190,11 +191,22 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
+	if _, err := h.svc.DB.GetDeviceName(r.Context(), tenantID, deviceID); err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	days := 1
 	if d := r.URL.Query().Get("days"); d != "" {
 		if n, err := parseInt(d); err == nil && n > 0 {
 			days = n
 		}
+	}
+	if days > 31 {
+		days = 31
 	}
 
 	// Нов branch: ?metric=temperature или ?metric=humidity → device_readings
@@ -253,6 +265,14 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleCompressorCycles(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
+	if _, err := h.svc.DB.GetDeviceName(r.Context(), tenantID, deviceID); err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	days := 7
 	if d := r.URL.Query().Get("days"); d != "" {
 		if n, err := parseInt(d); err == nil && n > 0 {
@@ -278,6 +298,14 @@ func (h *Handler) handleCompressorCycles(w http.ResponseWriter, r *http.Request)
 
 func (h *Handler) handleErrors(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
+	if _, err := h.svc.DB.GetDeviceName(r.Context(), tenantID, deviceID); err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	errs := h.svc.Errors.GetActive(tenantID, deviceID)
 	if errs == nil {
 		errs = []models.ErrorStatus{}
@@ -287,6 +315,14 @@ func (h *Handler) handleErrors(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
+	if _, err := h.svc.DB.GetDeviceName(r.Context(), tenantID, deviceID); err != nil {
+		if errors.Is(err, db.ErrNoRows) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	ts, hs, fs, ls, ss, ds := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
 	jsonResp(w, map[string]any{
 		"temp":     ts,
@@ -306,8 +342,8 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		Humidity *models.HumiditySettings `json:"humidity"`
 		Fan      *struct {
 			Speed          uint8  `json:"speed"`
-			MixingInterval uint32 `json:"mixing_interval"`
-			MixingDuration uint32 `json:"mixing_duration"`
+			MixingInterval uint32 `json:"mixing_interval_s"`
+			MixingDuration uint32 `json:"mixing_duration_s"`
 			MixingEnabled  bool   `json:"mixing_enabled"`
 		} `json:"fan"`
 		Light *models.LightSettings `json:"light"`
@@ -648,6 +684,10 @@ func (h *Handler) handleCreateDeviceType(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := h.svc.DB.CreateDeviceType(r.Context(), dt); err != nil {
+		if isPgError(err, "23505") {
+			http.Error(w, "device type already exists", http.StatusConflict)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		log.Printf("api: create device type %s: %v", dt.ID, err)
 		return
@@ -699,6 +739,10 @@ func (h *Handler) handleSetDeviceType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.DB.SetDeviceTypeID(r.Context(), tenantID, deviceID, body.DeviceTypeID); err != nil {
+		if isPgError(err, "23503") {
+			http.Error(w, "device_type_id not found", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		log.Printf("api: set device type %s/%s: %v", tenantID, deviceID, err)
 		return
@@ -943,6 +987,19 @@ func parseInt(s string) (int, error) {
 	var n int
 	_, err := fmt.Sscan(s, &n)
 	return n, err
+}
+
+// isPgError checks whether err (or any error in its chain) is a PostgreSQL
+// error with the given SQLSTATE code. Common codes:
+//
+//	"23503" — foreign_key_violation
+//	"23505" — unique_violation
+func isPgError(err error, code string) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == code
+	}
+	return false
 }
 
 // Ensure time is imported (used via models.Reading.Timestamp etc.)

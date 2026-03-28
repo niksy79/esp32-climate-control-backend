@@ -62,7 +62,9 @@
       "mcp__ide__getDiagnostics",
       "Bash(wc:*)",
       "Bash(node --input-type=module --eval \":*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(python3)",
+      "Bash(go list:*)"
     ]
   }
 }
