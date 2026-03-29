@@ -2,7 +2,11 @@
 // from the ESP32 climate controller firmware.
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -46,11 +50,11 @@ func (s SensorHealth) String() string {
 
 // SensorReading holds a single temperature/humidity measurement from the DHT sensor.
 type SensorReading struct {
-	Temperature float32   `json:"temperature"`
-	Humidity    float32   `json:"humidity"`
-	Timestamp   time.Time `json:"timestamp"`
-	FallbackTime bool     `json:"fallback_time"` // true when RTC unavailable
-	Health      SensorHealth `json:"health"`
+	Temperature  float32      `json:"temperature"`
+	Humidity     float32      `json:"humidity"`
+	Timestamp    time.Time    `json:"timestamp"`
+	FallbackTime uint32       `json:"fallback_time"` // 0 = not in fallback, >0 = seconds in fallback
+	Health       SensorHealth `json:"health"`
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +66,53 @@ type Reading struct {
 	Temperature  float32   `json:"temperature"`
 	Humidity     float32   `json:"humidity"`
 	Timestamp    time.Time `json:"timestamp"`
-	FallbackTime bool      `json:"fallback_time"`
+	FallbackTime uint32    `json:"fallback_time"`
+}
+
+// UnmarshalJSON accepts fallback_time as V1 bool or V2 int, and timestamp
+// with or without timezone suffix.
+func (r *Reading) UnmarshalJSON(data []byte) error {
+	type raw struct {
+		Temperature  float32         `json:"temperature"`
+		Humidity     float32         `json:"humidity"`
+		Timestamp    json.RawMessage `json:"timestamp"`
+		FallbackTime json.RawMessage `json:"fallback_time"`
+	}
+	var v raw
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	r.Temperature = v.Temperature
+	r.Humidity = v.Humidity
+	// Parse timestamp: try RFC3339, then without timezone
+	if len(v.Timestamp) > 0 {
+		var ts time.Time
+		if json.Unmarshal(v.Timestamp, &ts) == nil {
+			r.Timestamp = ts
+		} else {
+			var s string
+			if json.Unmarshal(v.Timestamp, &s) == nil {
+				if t, err := time.Parse("2006-01-02T15:04:05", s); err == nil {
+					r.Timestamp = t
+				}
+			}
+		}
+	}
+	// Parse fallback_time: bool (V1) or int (V2)
+	if len(v.FallbackTime) > 0 {
+		var b bool
+		if json.Unmarshal(v.FallbackTime, &b) == nil {
+			if b {
+				r.FallbackTime = 1
+			}
+			return nil
+		}
+		var n uint32
+		if json.Unmarshal(v.FallbackTime, &n) == nil {
+			r.FallbackTime = n
+		}
+	}
+	return nil
 }
 
 // CompressorCycle mirrors DataManager::CompressorCycle.
@@ -98,18 +148,37 @@ type HumiditySettings struct {
 
 // FanSettings mirrors StorageManager::FanSettings.
 type FanSettings struct {
-	Speed          uint8 `json:"speed"`           // 0–100 %
-	MixingInterval uint32 `json:"mixing_interval_s"`
-	MixingDuration uint32 `json:"mixing_duration_s"`
-	MixingEnabled  bool  `json:"mixing_enabled"`
+	Speed          uint8  `json:"speed"`            // 0–100 %
+	MixingInterval uint32 `json:"mixing_interval"`  // minutes
+	MixingDuration uint32 `json:"mixing_duration"`  // minutes
+	MixingEnabled  bool   `json:"mixing_enabled"`
 }
 
-type LightMode int
+type LightMode string
 
 const (
-	LightModeManual LightMode = iota
-	LightModeAuto
+	LightModeManual LightMode = "manual"
+	LightModeAuto   LightMode = "auto"
 )
+
+// UnmarshalJSON accepts both V1 int (0=manual, 1=auto) and V2 string.
+func (l *LightMode) UnmarshalJSON(data []byte) error {
+	var s string
+	if json.Unmarshal(data, &s) == nil {
+		*l = LightMode(s)
+		return nil
+	}
+	var n int
+	if json.Unmarshal(data, &n) == nil {
+		if n == 1 {
+			*l = LightModeAuto
+		} else {
+			*l = LightModeManual
+		}
+		return nil
+	}
+	return fmt.Errorf("light_mode: expected string or int, got %s", data)
+}
 
 // LightSettings mirrors StorageManager::LightSettings.
 type LightSettings struct {
@@ -302,18 +371,46 @@ type ErrorStatus struct {
 // Status manager (status_manager.h)
 // ---------------------------------------------------------------------------
 
-type SystemState int
+type SystemState string
 
 const (
-	SystemStateNormal   SystemState = iota
-	SystemStateWarning
-	SystemStateError
-	SystemStateSafeMode
-	SystemStateFallback
+	SystemStateNormal   SystemState = "NORMAL"
+	SystemStateWarning  SystemState = "WARNING"
+	SystemStateError    SystemState = "ERROR"
+	SystemStateSafeMode SystemState = "SAFE_MODE"
+	SystemStateFallback SystemState = "FALLBACK"
 )
 
 func (s SystemState) String() string {
-	return [...]string{"normal", "warning", "error", "safe_mode", "fallback"}[s]
+	return string(s)
+}
+
+// UnmarshalJSON accepts both V1 int and V2 string representations.
+func (s *SystemState) UnmarshalJSON(data []byte) error {
+	var str string
+	if json.Unmarshal(data, &str) == nil {
+		*s = SystemState(str)
+		return nil
+	}
+	var n int
+	if json.Unmarshal(data, &n) == nil {
+		switch n {
+		case 0:
+			*s = SystemStateNormal
+		case 1:
+			*s = SystemStateWarning
+		case 2:
+			*s = SystemStateError
+		case 3:
+			*s = SystemStateSafeMode
+		case 4:
+			*s = SystemStateFallback
+		default:
+			*s = SystemStateNormal
+		}
+		return nil
+	}
+	return fmt.Errorf("system_state: expected string or int, got %s", data)
 }
 
 // SystemStatus mirrors StatusManager::SystemStatus.
@@ -330,21 +427,49 @@ type SystemStatus struct {
 // WiFi / network (wifi_manager.h)
 // ---------------------------------------------------------------------------
 
-type WiFiState int
+type WiFiState string
 
 const (
-	WiFiStateBooting       WiFiState = iota
-	WiFiStateBootRetry
-	WiFiStateConnected
-	WiFiStateReconnecting
-	WiFiStateTempAP
-	WiFiStatePersistentAP
+	WiFiStateBooting       WiFiState = "BOOTING"
+	WiFiStateBootRetry     WiFiState = "BOOT_RETRY"
+	WiFiStateConnected     WiFiState = "CONNECTED"
+	WiFiStateReconnecting  WiFiState = "RECONNECTING"
+	WiFiStateTempAP        WiFiState = "TEMP_AP"
+	WiFiStatePersistentAP  WiFiState = "PERSISTENT_AP"
 )
 
 func (w WiFiState) String() string {
-	return [...]string{
-		"booting", "boot_retry", "connected", "reconnecting", "temp_ap", "persistent_ap",
-	}[w]
+	return string(w)
+}
+
+// UnmarshalJSON accepts both V1 int and V2 string representations.
+func (w *WiFiState) UnmarshalJSON(data []byte) error {
+	var s string
+	if json.Unmarshal(data, &s) == nil {
+		*w = WiFiState(s)
+		return nil
+	}
+	var n int
+	if json.Unmarshal(data, &n) == nil {
+		switch n {
+		case 0:
+			*w = WiFiStateBooting
+		case 1:
+			*w = WiFiStateBootRetry
+		case 2:
+			*w = WiFiStateConnected
+		case 3:
+			*w = WiFiStateReconnecting
+		case 4:
+			*w = WiFiStateTempAP
+		case 5:
+			*w = WiFiStatePersistentAP
+		default:
+			*w = WiFiState(fmt.Sprintf("UNKNOWN_%d", n))
+		}
+		return nil
+	}
+	return fmt.Errorf("wifi_state: expected string or int, got %s", data)
 }
 
 // DeviceIdentity holds mDNS / device discovery info.

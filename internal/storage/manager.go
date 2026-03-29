@@ -148,7 +148,7 @@ func (m *Manager) getOrCreate(tenantID, deviceID string) *deviceSettings {
 			temp:     models.TempSettings{Target: 4.0},
 			humidity: models.HumiditySettings{Target: 80.0},
 			fan: models.FanSettings{
-				Speed: 50, MixingInterval: 3600, MixingDuration: 300, MixingEnabled: true,
+				Speed: 50, MixingInterval: 60, MixingDuration: 5, MixingEnabled: true,
 			},
 			display: models.DisplaySettings{Brightness: 80, SleepTimeout: 30, AutoSleep: true},
 		}

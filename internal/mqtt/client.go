@@ -147,21 +147,20 @@ func (c *Client) PublishCommand(tenantID, deviceID, command string, payload any)
 // ---------------------------------------------------------------------------
 
 // mqttSettingsPayload matches the flat JSON published by the ESP32 firmware
-// on the climate/.../settings topic. Field names mirror the firmware's keys;
-// mix_interval and mix_duration are in minutes and are converted to seconds
-// before being stored.
+// on the climate/.../settings topic. V2 firmware sends mixing_interval and
+// mixing_duration in minutes; light_mode as a string ("manual"/"auto").
 type mqttSettingsPayload struct {
-	TempTarget    float32 `json:"temp_target"`
-	TempOffset    float32 `json:"temp_offset"`
-	HumTarget     float32 `json:"hum_target"`
-	HumOffset     float32 `json:"hum_offset"`
-	FanSpeed      uint8   `json:"fan_speed"`
-	MixInterval   uint32  `json:"mix_interval"`
-	MixDuration   uint32  `json:"mix_duration"`
-	MixingEnabled bool    `json:"mixing_enabled"`
-	LightMode     int     `json:"light_mode"`
-	LightState    bool    `json:"light_state"`
-	ActiveMode    int     `json:"active_mode"`
+	TempTarget      float32 `json:"temp_target"`
+	TempOffset      float32 `json:"temp_offset"`
+	HumTarget       float32 `json:"hum_target"`
+	HumOffset       float32 `json:"hum_offset"`
+	FanSpeed        uint8   `json:"fan_speed"`
+	MixingInterval  uint32  `json:"mixing_interval"`
+	MixingDuration  uint32  `json:"mixing_duration"`
+	MixingEnabled   bool    `json:"mixing_enabled"`
+	LightMode       string  `json:"light_mode"`
+	LightState      bool    `json:"light_state"`
+	ActiveMode      int     `json:"active_mode"`
 }
 
 func (c *Client) onConnect(cl paho.Client) {
@@ -232,6 +231,10 @@ func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
 			log.Printf("mqtt: decode settings/%s/%s: %v", tenantID, deviceID, err)
 			return
 		}
+		lightMode := models.LightMode(p.LightMode)
+		if lightMode != models.LightModeAuto {
+			lightMode = models.LightModeManual
+		}
 		snap := models.DeviceSnapshot{
 			TenantID: tenantID,
 			DeviceID: deviceID,
@@ -245,12 +248,12 @@ func (c *Client) dispatch(_ paho.Client, msg paho.Message) {
 			},
 			FanSettings: models.FanSettings{
 				Speed:          p.FanSpeed,
-				MixingInterval: p.MixInterval * 60, // minutes → seconds
-				MixingDuration: p.MixDuration * 60, // minutes → seconds
+				MixingInterval: p.MixingInterval,
+				MixingDuration: p.MixingDuration,
 				MixingEnabled:  p.MixingEnabled,
 			},
 			LightSettings: models.LightSettings{
-				Mode:  models.LightMode(p.LightMode),
+				Mode:  lightMode,
 				State: p.LightState,
 			},
 			ActiveMode: models.ModeType(p.ActiveMode),

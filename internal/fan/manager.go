@@ -103,8 +103,8 @@ func (m *Manager) getOrCreate(tenantID, deviceID string) *deviceFan {
 		df = &deviceFan{
 			settings: models.FanSettings{
 				Speed:          50,
-				MixingInterval: 3600,
-				MixingDuration: 300,
+				MixingInterval: 60,
+				MixingDuration: 5,
 				MixingEnabled:  true,
 			},
 		}

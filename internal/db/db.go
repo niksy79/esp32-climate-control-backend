@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS devices (
     device_name TEXT NOT NULL DEFAULT '',
     hostname    TEXT NOT NULL DEFAULT '',
     ip_address  TEXT NOT NULL DEFAULT '',
-    wifi_state  INTEGER NOT NULL DEFAULT 0,
+    wifi_state  TEXT NOT NULL DEFAULT 'DISCONNECTED',
     last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at  TIMESTAMPTZ,
     PRIMARY KEY (tenant_id, device_id)
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS readings (
     device_id     TEXT        NOT NULL,
     temperature   REAL        NOT NULL,
     humidity      REAL        NOT NULL,
-    fallback_time BOOLEAN     NOT NULL DEFAULT FALSE,
+    fallback_time INTEGER     NOT NULL DEFAULT 0,
     recorded_at   TIMESTAMPTZ NOT NULL,
     FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, device_id)
 );
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS system_status (
     id              BIGSERIAL PRIMARY KEY,
     tenant_id       TEXT    NOT NULL,
     device_id       TEXT    NOT NULL,
-    state           INTEGER NOT NULL,
+    state           TEXT NOT NULL,
     dht_ok          BOOLEAN NOT NULL,
     rtc_ok          BOOLEAN NOT NULL,
     uptime_seconds  INTEGER NOT NULL,
@@ -119,10 +119,10 @@ CREATE TABLE IF NOT EXISTS device_settings (
     humidity_target     REAL    NOT NULL DEFAULT 80.0,
     humidity_offset     REAL    NOT NULL DEFAULT 0.0,
     fan_speed           INTEGER NOT NULL DEFAULT 50,
-    mixing_interval_s   INTEGER NOT NULL DEFAULT 3600,
-    mixing_duration_s   INTEGER NOT NULL DEFAULT 300,
+    mixing_interval     INTEGER NOT NULL DEFAULT 60,
+    mixing_duration     INTEGER NOT NULL DEFAULT 5,
     mixing_enabled      BOOLEAN NOT NULL DEFAULT TRUE,
-    light_mode          INTEGER NOT NULL DEFAULT 0,
+    light_mode          TEXT    NOT NULL DEFAULT 'manual',
     light_state         BOOLEAN NOT NULL DEFAULT FALSE,
     operational_mode    TEXT    NOT NULL DEFAULT 'normal',
     active_mode         INTEGER NOT NULL DEFAULT 0,
@@ -230,6 +230,83 @@ DO $$ BEGIN
     ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
 EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL;
 END $$;
+
+-- V2 firmware migrations: int/bool columns → text/integer
+DO $$ BEGIN
+    -- system_status.state: INTEGER → TEXT
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='system_status' AND column_name='state' AND data_type='integer'
+    ) THEN
+        ALTER TABLE system_status ALTER COLUMN state DROP DEFAULT;
+        ALTER TABLE system_status ALTER COLUMN state TYPE TEXT USING
+            CASE state
+                WHEN 0 THEN 'NORMAL'
+                WHEN 1 THEN 'WARNING'
+                WHEN 2 THEN 'ERROR'
+                WHEN 3 THEN 'SAFE_MODE'
+                WHEN 4 THEN 'FALLBACK'
+                ELSE 'NORMAL'
+            END;
+    END IF;
+
+    -- devices.wifi_state: INTEGER → TEXT
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='devices' AND column_name='wifi_state' AND data_type='integer'
+    ) THEN
+        ALTER TABLE devices ALTER COLUMN wifi_state DROP DEFAULT;
+        ALTER TABLE devices ALTER COLUMN wifi_state TYPE TEXT USING
+            CASE wifi_state
+                WHEN 0 THEN 'BOOTING'
+                WHEN 1 THEN 'BOOT_RETRY'
+                WHEN 2 THEN 'CONNECTED'
+                WHEN 3 THEN 'RECONNECTING'
+                WHEN 4 THEN 'TEMP_AP'
+                WHEN 5 THEN 'PERSISTENT_AP'
+                ELSE 'DISCONNECTED'
+            END;
+        ALTER TABLE devices ALTER COLUMN wifi_state SET DEFAULT 'DISCONNECTED';
+    END IF;
+
+    -- readings.fallback_time: BOOLEAN → INTEGER
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='readings' AND column_name='fallback_time' AND data_type='boolean'
+    ) THEN
+        ALTER TABLE readings ALTER COLUMN fallback_time DROP DEFAULT;
+        ALTER TABLE readings ALTER COLUMN fallback_time TYPE INTEGER USING
+            CASE WHEN fallback_time THEN 1 ELSE 0 END;
+        ALTER TABLE readings ALTER COLUMN fallback_time SET DEFAULT 0;
+    END IF;
+
+    -- device_settings.light_mode: INTEGER → TEXT
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='device_settings' AND column_name='light_mode' AND data_type='integer'
+    ) THEN
+        ALTER TABLE device_settings ALTER COLUMN light_mode DROP DEFAULT;
+        ALTER TABLE device_settings ALTER COLUMN light_mode TYPE TEXT USING
+            CASE light_mode WHEN 0 THEN 'manual' WHEN 1 THEN 'auto' ELSE 'manual' END;
+        ALTER TABLE device_settings ALTER COLUMN light_mode SET DEFAULT 'manual';
+    END IF;
+
+    -- device_settings: rename mixing_interval_s → mixing_interval, convert seconds → minutes
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='device_settings' AND column_name='mixing_interval_s'
+    ) THEN
+        ALTER TABLE device_settings ALTER COLUMN mixing_interval_s DROP DEFAULT;
+        ALTER TABLE device_settings ALTER COLUMN mixing_duration_s DROP DEFAULT;
+        ALTER TABLE device_settings RENAME COLUMN mixing_interval_s TO mixing_interval;
+        ALTER TABLE device_settings RENAME COLUMN mixing_duration_s TO mixing_duration;
+        UPDATE device_settings SET
+            mixing_interval = GREATEST(1, mixing_interval / 60),
+            mixing_duration = GREATEST(1, mixing_duration / 60);
+        ALTER TABLE device_settings ALTER COLUMN mixing_interval SET DEFAULT 60;
+        ALTER TABLE device_settings ALTER COLUMN mixing_duration SET DEFAULT 5;
+    END IF;
+END $$;
 `
 
 // ---------------------------------------------------------------------------
@@ -288,7 +365,7 @@ func (d *DB) UpsertDevice(ctx context.Context, dev models.DeviceIdentity) error 
 			wifi_state  = EXCLUDED.wifi_state,
 			last_seen   = NOW(),
 			deleted_at  = NULL`,
-		dev.TenantID, dev.DeviceID, dev.DeviceName, dev.Hostname, dev.IPAddress, int(dev.WiFiState),
+		dev.TenantID, dev.DeviceID, dev.DeviceName, dev.Hostname, dev.IPAddress, string(dev.WiFiState),
 	)
 	return err
 }
@@ -501,7 +578,7 @@ func (d *DB) InsertSystemStatus(ctx context.Context, tenantID, deviceID string, 
 	_, err := d.pool.Exec(ctx, `
 		INSERT INTO system_status (tenant_id, device_id, state, dht_ok, rtc_ok, uptime_seconds, restart_count, recorded_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-		tenantID, deviceID, int(s.State), s.DHTOk, s.RTCOk, s.UptimeSeconds, s.RestartCount,
+		tenantID, deviceID, string(s.State), s.DHTOk, s.RTCOk, s.UptimeSeconds, s.RestartCount,
 	)
 	return err
 }
@@ -509,7 +586,6 @@ func (d *DB) InsertSystemStatus(ctx context.Context, tenantID, deviceID string, 
 // GetLatestSystemStatus returns the most recent status for a tenant/device pair.
 func (d *DB) GetLatestSystemStatus(ctx context.Context, tenantID, deviceID string) (models.SystemStatus, error) {
 	var s models.SystemStatus
-	var state int
 	err := d.pool.QueryRow(ctx, `
 		SELECT state, dht_ok, rtc_ok, uptime_seconds, restart_count, recorded_at
 		FROM system_status
@@ -517,12 +593,8 @@ func (d *DB) GetLatestSystemStatus(ctx context.Context, tenantID, deviceID strin
 		ORDER BY recorded_at DESC
 		LIMIT 1`,
 		tenantID, deviceID,
-	).Scan(&state, &s.DHTOk, &s.RTCOk, &s.UptimeSeconds, &s.RestartCount, &s.Timestamp)
-	if err != nil {
-		return s, err
-	}
-	s.State = models.SystemState(state)
-	return s, nil
+	).Scan(&s.State, &s.DHTOk, &s.RTCOk, &s.UptimeSeconds, &s.RestartCount, &s.Timestamp)
+	return s, err
 }
 
 // ---------------------------------------------------------------------------
@@ -588,7 +660,7 @@ func (d *DB) GetSettings(ctx context.Context, tenantID, deviceID string) (
 	err := d.pool.QueryRow(ctx, `
 		SELECT temp_target, temp_offset,
 		       humidity_target, humidity_offset,
-		       fan_speed, mixing_interval_s, mixing_duration_s, mixing_enabled,
+		       fan_speed, mixing_interval, mixing_duration, mixing_enabled,
 		       light_mode, light_state,
 		       operational_mode, active_mode
 		FROM device_settings
@@ -638,28 +710,28 @@ func (d *DB) UpsertSettings(ctx context.Context, tenantID, deviceID string,
 			tenant_id, device_id,
 			temp_target, temp_offset,
 			humidity_target, humidity_offset,
-			fan_speed, mixing_interval_s, mixing_duration_s, mixing_enabled,
+			fan_speed, mixing_interval, mixing_duration, mixing_enabled,
 			light_mode, light_state, operational_mode, active_mode, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
 		ON CONFLICT (tenant_id, device_id) DO UPDATE SET
-			temp_target       = EXCLUDED.temp_target,
-			temp_offset       = EXCLUDED.temp_offset,
-			humidity_target   = EXCLUDED.humidity_target,
-			humidity_offset   = EXCLUDED.humidity_offset,
-			fan_speed         = EXCLUDED.fan_speed,
-			mixing_interval_s = EXCLUDED.mixing_interval_s,
-			mixing_duration_s = EXCLUDED.mixing_duration_s,
-			mixing_enabled    = EXCLUDED.mixing_enabled,
-			light_mode        = EXCLUDED.light_mode,
-			light_state       = EXCLUDED.light_state,
-			operational_mode  = EXCLUDED.operational_mode,
-			active_mode       = EXCLUDED.active_mode,
-			updated_at        = NOW()`,
+			temp_target      = EXCLUDED.temp_target,
+			temp_offset      = EXCLUDED.temp_offset,
+			humidity_target  = EXCLUDED.humidity_target,
+			humidity_offset  = EXCLUDED.humidity_offset,
+			fan_speed        = EXCLUDED.fan_speed,
+			mixing_interval  = EXCLUDED.mixing_interval,
+			mixing_duration  = EXCLUDED.mixing_duration,
+			mixing_enabled   = EXCLUDED.mixing_enabled,
+			light_mode       = EXCLUDED.light_mode,
+			light_state      = EXCLUDED.light_state,
+			operational_mode = EXCLUDED.operational_mode,
+			active_mode      = EXCLUDED.active_mode,
+			updated_at       = NOW()`,
 		tenantID, deviceID,
 		ts.Target, ts.Offset,
 		hs.Target, hs.Offset,
 		fs.Speed, fs.MixingInterval, fs.MixingDuration, fs.MixingEnabled,
-		int(ls.Mode), ls.State,
+		string(ls.Mode), ls.State,
 		mode.String(), int(activeMode),
 	)
 	return err

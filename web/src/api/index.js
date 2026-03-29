@@ -65,6 +65,9 @@ export const switchMode = (tenantId, deviceId, mode) =>
 export const setLight = (tenantId, deviceId, payload) =>
   client.post(`/api/tenants/${tenantId}/devices/${deviceId}/light`, payload)
 
+export const sendWifiCommand = (tenantId, deviceId, action) =>
+  client.post(`/api/tenants/${tenantId}/devices/${deviceId}/wifi`, { action })
+
 // User management
 export const listUsers = (tenantId) =>
   client.get(`/api/tenants/${tenantId}/users`)

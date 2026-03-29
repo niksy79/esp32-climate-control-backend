@@ -42,13 +42,14 @@ func (m *Manager) UpdateDeviceStates(tenantID, deviceID string, ds models.Device
 }
 
 // UpdateSnapshot updates mode and settings from a full device snapshot.
+// DeviceStates is NOT overwritten here — relay states come from the dedicated
+// relays topic and must not be reset by settings snapshots that lack relay data.
 func (m *Manager) UpdateSnapshot(tenantID, deviceID string, snap models.DeviceSnapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	dc := m.getOrCreate(tenantID, deviceID)
 	dc.OperationalMode = snap.OperationalMode
 	dc.ActiveMode = snap.ActiveMode
-	dc.DeviceStates = snap.DeviceStates
 	dc.LastUpdated = time.Now()
 }
 

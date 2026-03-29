@@ -12,7 +12,7 @@ import {
   getSettings, saveSettings, switchMode, setLight, listAlertRules, createAlertRule, deleteAlertRule,
   getCompressorCycles, getErrors, getDeviceTypes,
   setDeviceType as apiSetDeviceType,
-  updateDeviceName, getDeviceLogs,
+  updateDeviceName, getDeviceLogs, sendWifiCommand,
 } from '../api/index'
 import {
   formatTemperature, formatHumidity, formatTimestamp,
@@ -55,6 +55,7 @@ function Tabs({ active, onChange }) {
     { key: 'alerts',      label: 'Алерти' },
     { key: 'modes',       label: 'Режими' },
     { key: 'diagnostics', label: 'Диагностика' },
+    { key: 'wifi',        label: 'WiFi' },
     { key: 'logs',        label: 'Логове' },
   ]
   const activeRef = useRef(null)
@@ -188,8 +189,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
       hum_offset:        hum.offset         ?? 0,
       fan_speed:         fan.speed          ?? 50,
       mixing_enabled:    fan.mixing_enabled ?? true,
-      mixing_interval:   Math.round((fan.mixing_interval_s ?? 3600) / 60),
-      mixing_duration:   Math.round((fan.mixing_duration_s ?? 300) / 60),
+      mixing_interval:   fan.mixing_interval ?? 60,
+      mixing_duration:   fan.mixing_duration ?? 5,
     }
   }, [settings])
 
@@ -228,8 +229,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
   const [typeMsg, setTypeMsg] = useState(null)
   const typeMsgTimer = useRef(null)
 
-  // Light local state (0=manual, 1=auto)
-  const [lightMode, setLightMode] = useState(settings?.light?.mode ?? 0)
+  // Light local state ("manual" or "auto")
+  const [lightMode, setLightMode] = useState(settings?.light?.mode ?? 'manual')
   const [lightState, setLightState] = useState(settings?.light?.state ?? false)
   const [lightSaving, setLightSaving] = useState(false)
   const [lightMsg, setLightMsg] = useState(null)
@@ -238,7 +239,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
   // Sync light state when settings loads (initial value is null before fetch completes)
   useEffect(() => {
     if (settings?.light != null) {
-      setLightMode(settings.light.mode ?? 0)
+      setLightMode(settings.light.mode ?? 'manual')
       setLightState(settings.light.state ?? false)
     }
   }, [settings])
@@ -249,7 +250,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
     setLightMsg(null)
     try {
       await setLight(tenantId, deviceId, { mode: newMode })
-      setLightMode(newMode === 'manual' ? 0 : 1)
+      setLightMode(newMode)
       setLightMsg({ type: 'ok', text: 'Режимът е запазен' })
       clearTimeout(lightMsgTimer.current)
       lightMsgTimer.current = setTimeout(() => setLightMsg(null), 3000)
@@ -316,9 +317,9 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
         humidity: { target: parseFloat(form.hum_target),  offset: parseFloat(form.hum_offset) },
         fan: {
           speed:            parseInt(form.fan_speed, 10),
-          mixing_enabled:   form.mixing_enabled,
-          mixing_interval_s:  parseInt(form.mixing_interval, 10) * 60,
-          mixing_duration_s:  parseInt(form.mixing_duration, 10) * 60,
+          mixing_enabled:     form.mixing_enabled,
+          mixing_interval:    parseInt(form.mixing_interval, 10),
+          mixing_duration:    parseInt(form.mixing_duration, 10),
         },
       })
       setSaveMsg({ type: 'ok', text: 'Настройките са запазени' })
@@ -498,8 +499,8 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
               <div className="sc-card-body sc-light-body">
                 <button
                   type="button"
-                  className={`sc-light-orb${lightState && lightMode === 0 ? ' sc-light-orb--on' : ''}`}
-                  disabled={lightSaving || lightMode !== 0}
+                  className={`sc-light-orb${lightState && lightMode === 'manual' ? ' sc-light-orb--on' : ''}`}
+                  disabled={lightSaving || lightMode !== 'manual'}
                   onClick={handleLightToggle}
                   aria-label={lightState ? 'Изключи осветлението' : 'Включи осветлението'}
                 >
@@ -510,13 +511,13 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                   </svg>
                 </button>
                 <span className="sc-light-label">Осветление</span>
-                <span className={`sc-light-state${lightState && lightMode === 0 ? ' sc-light-state--on' : ''}`}>
-                  {lightMode === 1 ? 'Автоматичен' : lightState ? 'Включено' : 'Изключено'}
+                <span className={`sc-light-state${lightState && lightMode === 'manual' ? ' sc-light-state--on' : ''}`}>
+                  {lightMode === 'auto' ? 'Автоматичен' : lightState ? 'Включено' : 'Изключено'}
                 </span>
                 <div className="sc-seg sc-light-seg">
                   <button
                     type="button"
-                    className={`sc-seg-btn${lightMode === 1 ? ' sc-seg-btn--active' : ''}`}
+                    className={`sc-seg-btn${lightMode === 'auto' ? ' sc-seg-btn--active' : ''}`}
                     disabled={lightSaving}
                     onClick={() => handleLightMode('auto')}
                   >
@@ -524,7 +525,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                   </button>
                   <button
                     type="button"
-                    className={`sc-seg-btn${lightMode === 0 ? ' sc-seg-btn--active' : ''}`}
+                    className={`sc-seg-btn${lightMode === 'manual' ? ' sc-seg-btn--active' : ''}`}
                     disabled={lightSaving}
                     onClick={() => handleLightMode('manual')}
                   >
@@ -980,6 +981,55 @@ function TabDiagnostics({ cycles, errors }) {
   )
 }
 
+// ── Tab: WiFi ─────────────────────────────────────────────
+function TabWifi({ tenantId, deviceId }) {
+  const [sending, setSending] = useState(false)
+  const [result, setResult]   = useState(null) // { type: 'ok'|'err', text }
+
+  async function send(action) {
+    if (action === 'reset' && !window.confirm('Сигурни ли сте? Това ще изтрие WiFi настройките на устройството.')) return
+    setSending(true)
+    setResult(null)
+    try {
+      const res = await sendWifiCommand(tenantId, deviceId, action)
+      setResult({ type: 'ok', text: `Команда "${res.data.action}" изпратена.` })
+    } catch (err) {
+      setResult({ type: 'err', text: err.response?.data || err.message })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="dd-tab-content">
+      <div className="sc-card">
+        <h3 className="sc-card-title">WiFi управление</h3>
+        <div className="sc-card-body" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            className="dd-btn dd-btn--primary"
+            disabled={sending}
+            onClick={() => send('start_provisioning')}
+          >
+            Start Provisioning
+          </button>
+          <button
+            className="dd-btn dd-btn--danger"
+            disabled={sending}
+            onClick={() => send('reset')}
+          >
+            Reset WiFi
+          </button>
+        </div>
+        {result && (
+          <p style={{ marginTop: 12, color: result.type === 'ok' ? '#4ade80' : '#f87171' }}>
+            {result.text}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Tab: Логове ───────────────────────────────────────────
 const LOGS_LINES_OPTIONS = [100, 200, 500]
 
@@ -1277,6 +1327,9 @@ export default function DeviceDetail() {
       )}
       {activeTab === 'diagnostics' && (
         <TabDiagnostics cycles={cycles} errors={errors} />
+      )}
+      {activeTab === 'wifi' && isAdmin && (
+        <TabWifi tenantId={tenantId} deviceId={deviceId} />
       )}
       {activeTab === 'logs' && (
         <TabLogs tenantId={tenantId} deviceId={deviceId} />

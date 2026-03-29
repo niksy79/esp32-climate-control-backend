@@ -99,6 +99,7 @@ func New(r *mux.Router, svc Services, hub *ws.Hub, authHandler *auth.Handler) *H
 	protected.HandleFunc(base+"/{device_id}/settings", h.handleSaveSettings).Methods(http.MethodPost)
 	protected.HandleFunc(base+"/{device_id}/mode", h.handleSwitchMode).Methods(http.MethodPost)
 	protected.HandleFunc(base+"/{device_id}/light", h.handleSetLight).Methods(http.MethodPost)
+	protected.HandleFunc(base+"/{device_id}/wifi", h.handleWifiCommand).Methods(http.MethodPost)
 
 	alertBase := base + "/{device_id}/alert-rules"
 	protected.HandleFunc(alertBase, h.handleListAlertRules).Methods(http.MethodGet)
@@ -170,9 +171,9 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 	dc, _ := h.svc.Control.GetControl(tenantID, deviceID)
 	fs, _ := h.svc.Fan.GetSettings(tenantID, deviceID)
 	_, _, _, ls, _, _ := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
-	lightModeStr := "manual"
-	if ls.Mode == models.LightModeAuto {
-		lightModeStr = "auto"
+	lightModeStr := string(ls.Mode)
+	if lightModeStr == "" {
+		lightModeStr = "manual"
 	}
 	jsonResp(w, map[string]any{
 		"device_name":      deviceName,
@@ -342,8 +343,8 @@ func (h *Handler) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		Humidity *models.HumiditySettings `json:"humidity"`
 		Fan      *struct {
 			Speed          uint8  `json:"speed"`
-			MixingInterval uint32 `json:"mixing_interval_s"`
-			MixingDuration uint32 `json:"mixing_duration_s"`
+			MixingInterval uint32 `json:"mixing_interval"`
+			MixingDuration uint32 `json:"mixing_duration"`
 			MixingEnabled  bool   `json:"mixing_enabled"`
 		} `json:"fan"`
 		Light *models.LightSettings `json:"light"`
@@ -442,6 +443,29 @@ func (h *Handler) handleSwitchMode(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) handleWifiCommand(w http.ResponseWriter, r *http.Request) {
+	tenantID, deviceID := pathIDs(r)
+	var body struct {
+		Action string `json:"action"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if body.Action != "start_provisioning" && body.Action != "reset" {
+		http.Error(w, "invalid action: must be 'start_provisioning' or 'reset'", http.StatusBadRequest)
+		return
+	}
+	if h.svc.MQTT != nil {
+		if err := h.svc.MQTT.PublishCommand(tenantID, deviceID, "wifi", map[string]any{"action": body.Action}); err != nil {
+			log.Printf("api: mqtt publish wifi %s/%s: %v", tenantID, deviceID, err)
+			http.Error(w, "mqtt publish failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	jsonResp(w, map[string]string{"status": "sent", "action": body.Action})
+}
+
 func (h *Handler) handleSetLight(w http.ResponseWriter, r *http.Request) {
 	tenantID, deviceID := pathIDs(r)
 	var body struct {
@@ -464,11 +488,7 @@ func (h *Handler) handleSetLight(w http.ResponseWriter, r *http.Request) {
 	if body.Mode != nil || body.State != nil {
 		_, _, _, ls, _, _ := h.svc.Storage.LoadSettings(r.Context(), tenantID, deviceID)
 		if body.Mode != nil {
-			if *body.Mode == "auto" {
-				ls.Mode = models.LightModeAuto
-			} else {
-				ls.Mode = models.LightModeManual
-			}
+			ls.Mode = models.LightMode(*body.Mode)
 		}
 		if body.State != nil {
 			ls.State = *body.State
