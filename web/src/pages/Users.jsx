@@ -79,11 +79,6 @@ export default function Users() {
   return (
     <div className="users-page">
       <div className="users-container">
-        <div className="users-header">
-          <button className="profile-back-btn" onClick={() => navigate('/')}>← Назад</button>
-          <h1 className="users-title">Потребители</h1>
-        </div>
-
         {listError && <p className="users-error">{listError}</p>}
 
         <div className="users-card">

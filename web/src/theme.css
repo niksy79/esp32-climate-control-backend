@@ -35,39 +35,69 @@
   --red-text:   #f87171;
   --orange:     #fb923c;
 
+  /* Gauge arc colours */
+  --color-temp:  #64d8f0;
+  --color-hum:   #2dd4b8;
+  --color-fan:   #a78bfa;
+  --color-light-active: #f59e0b;
+
+  /* Segment / toggle button */
+  --seg-bg:         rgba(255, 255, 255, 0.06);
+  --seg-border:     rgba(255, 255, 255, 0.1);
+  --seg-text:       rgba(255, 255, 255, 0.45);
+  --seg-active-bg:  #f59e0b;
+  --seg-active-text: #1a1100;
+
   /* Shadows */
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="light"] {
-  /* Backgrounds */
-  --bg-page:    #f0f4f8;
-  --bg-surface: #ffffff;
-  --bg-card:    #ffffff;
-  --bg-input:   #f8fafc;
-  --bg-raised:  #f1f5f9;
+  /* Backgrounds — desaturated, low contrast */
+  --bg-page:    #b8bec8;
+  --bg-surface: #c2c8d2;
+  --bg-card:    #cacfd8;
+  --bg-input:   #b4bac4;
+  --bg-raised:  #aeb4be;
   --bg-log:     #1e293b;
 
   /* Borders */
-  --border:        #e2e8f0;
-  --border-subtle: #f1f5f9;
+  --border:        #a4aab6;
+  --border-subtle: #b4bac4;
 
   /* Text */
-  --text-primary:   #0a0f1e;
-  --text-body:      #1a2234;
-  --text-secondary: #334155;
-  --text-muted:     #64748b;
-  --text-dim:       #94a3b8;
+  --text-primary:   #1a2332;
+  --text-body:      #2d3a4d;
+  --text-secondary: #3d4a5c;
+  --text-muted:     #5a6578;
+  --text-dim:       #7a8494;
 
   /* Accent */
-  --accent-light: #1d4ed8;
-  --accent-dim:   #bfdbfe;
+  --accent:       #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: #2563eb;
+  --accent-dim:   #93b4e8;
 
-  /* Semantic colours — darker for light bg */
-  --green-text: #16a34a;
-  --red-text:   #dc2626;
-  --orange:     #ea580c;
+  /* Semantic colours */
+  --green:      #1a9d4e;
+  --green-text: #15803d;
+  --red:        #dc2626;
+  --red-text:   #b91c1c;
+  --orange:     #c2610e;
+
+  /* Gauge arc colours (muted for light bg) */
+  --color-temp:  #0891b2;
+  --color-hum:   #0d9488;
+  --color-fan:   #7c3aed;
+  --color-light-active: #b45309;
+
+  /* Segment / toggle button */
+  --seg-bg:         #bfc4ce;
+  --seg-border:     #a4aab6;
+  --seg-text:       var(--text-muted);
+  --seg-active-bg:  var(--accent);
+  --seg-active-text: #fff;
 
   /* Shadows */
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.06);
 }

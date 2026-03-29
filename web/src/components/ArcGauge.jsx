@@ -42,7 +42,7 @@ export default function ArcGauge({ value, min, max, step, unit, color, label, on
         <path
           d={trackPath}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          className="arc-gauge-track"
           strokeWidth="8"
           strokeLinecap="round"
         />
@@ -51,7 +51,7 @@ export default function ArcGauge({ value, min, max, step, unit, color, label, on
           <path
             d={valuePath}
             fill="none"
-            stroke={color}
+            style={{ stroke: color }}
             strokeWidth="8"
             strokeLinecap="round"
           />
@@ -61,16 +61,16 @@ export default function ArcGauge({ value, min, max, step, unit, color, label, on
           cx={knob.x}
           cy={knob.y}
           r="11"
-          fill={color}
-          stroke="#1a1d2e"
+          style={{ fill: color }}
+          className="arc-gauge-knob"
           strokeWidth="3"
         />
         {/* Center text */}
-        <text x={CX} y={CY - 20} textAnchor="middle" className="arc-gauge-label" fill="rgba(255,255,255,0.45)">
+        <text x={CX} y={CY - 20} textAnchor="middle" className="arc-gauge-label">
           {label}
         </text>
-        <text x={CX} y={CY + 14} textAnchor="middle" dominantBaseline="central" className="arc-gauge-number" fill={color}>
-          {formatted}<tspan dx="3" dy="-14" className="arc-gauge-unit" fill="rgba(255,255,255,0.4)">{unit}</tspan>
+        <text x={CX} y={CY + 14} textAnchor="middle" dominantBaseline="central" className="arc-gauge-number" style={{ fill: color }}>
+          {formatted}<tspan dx="3" dy="-14" className="arc-gauge-unit">{unit}</tspan>
         </text>
       </svg>
       {/* +/- buttons in the gap */}

@@ -74,6 +74,8 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 
   const photoStyle = deviceImage ? { backgroundImage: `url(${deviceImage})` } : {}
 
+  const lightLabel = isAutoLight ? 'AUTO' : lightOn ? 'ON' : 'OFF'
+
   return (
     <div
       className="device-card"
@@ -82,62 +84,63 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      {/* ── Photo half ── */}
-      <div
-        className={`card-photo-area${isOffline ? ' card-photo-offline' : ''}`}
-        style={photoStyle}
-      >
-        <div className="card-photo-gradient" />
-
-        {/* Badge — top right */}
-        <span className={`card-badge-corner alert-badge ${badgeClass}`}>{badgeLabel}</span>
-
-        {/* Device name — bottom left */}
-        <div className="card-name-block">
-          <span className="card-photo-name">{name}</span>
+      {/* ── Header: name with status dot + light button ── */}
+      <div className="card-header">
+        <div className="card-header-text">
+          <span className="card-name">
+            <span className={`status-dot ${isOffline ? 'status-dot--off' : isStale ? 'status-dot--warn' : 'status-dot--on'}`} />
+            {name}
+          </span>
           {deviceTypeObj && (
-            <span className="card-photo-type">{deviceTypeObj.display_name}</span>
+            <span className="card-type">{deviceTypeObj.display_name}</span>
           )}
         </div>
+        {isAdmin ? (
+          <button
+            className={`card-power-btn${lightOn && !isAutoLight ? ' card-power-btn--on' : ''}${isAutoLight ? ' card-power-btn--auto' : ''}`}
+            title={isAutoLight ? 'Авто режим' : lightOn ? 'Изключи' : 'Включи'}
+            disabled={isAutoLight}
+            onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+          </button>
+        ) : (
+          <span className={`card-power-btn${lightOn && !isAutoLight ? ' card-power-btn--on' : ''}${isAutoLight ? ' card-power-btn--auto' : ''}`}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+          </span>
+        )}
       </div>
 
-      {/* ── Body half ── */}
+      {/* ── Body ── */}
       <div className="card-body">
-        {/* 2×2 metric grid */}
-        <div className="card-metrics">
+        {/* 2×2 metrics grid */}
+        <div className="card-metrics-grid">
           <div className="metric-cell">
             <span className="metric-label">Температура</span>
-            <span className={
-              `metric-value metric-temp` +
-              (tempHigh && !isOffline ? ' temp-high' : '') +
-              (isOffline ? ' metric-offline' : '')
-            }>
+            <span className={`metric-val metric-val--temp${isOffline ? ' metric-offline' : ''}${tempHigh && !isOffline ? ' temp-high' : ''}`}>
               {isOffline ? '—' : formatTemperature(device.temperature)}
             </span>
           </div>
-
           <div className="metric-cell">
             <span className="metric-label">Влажност</span>
-            <span className={
-              `metric-value metric-hum` +
-              (isStale ? ' reading-stale' : '') +
-              (isOffline ? ' metric-offline' : '')
-            }>
+            <span className={`metric-val metric-val--hum${isOffline ? ' metric-offline' : ''}${isStale ? ' reading-stale' : ''}`}>
               {isOffline ? '—' : formatHumidity(device.humidity)}
             </span>
           </div>
-
           <div className="metric-cell">
             <span className="metric-label">Вентилатор</span>
-            <span className="metric-value metric-fan">
+            <span className="metric-val metric-val--fan">
               {!isOffline && fanSpeed != null ? `${fanSpeed}%` : '—'}
             </span>
           </div>
-
           <div className="metric-cell">
             <span className="metric-label">Режим</span>
-            <span className={`metric-value metric-mode ${device.activeMode === 'normal' ? 'mode-normal' : device.activeMode === 'heating' ? 'mode-heating' : ''}`}>
-              {isOffline ? '—' : modeLabel?.toUpperCase()}
+            <span className={`metric-val metric-val--mode${device.activeMode === 'heating' ? ' metric-val--warm' : ''}`}>
+              {isOffline ? '—' : modeLabel}
             </span>
           </div>
         </div>
@@ -147,24 +150,6 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
           <RelayBadge label="Компресор" on={compressorOn} />
           <RelayBadge label="Вентилатор" on={extraFanOn} />
           <RelayBadge label="Нагревател" on={heatingOn} />
-        </div>
-
-        {/* Light toggle — full-width row, visually distinct from indicators */}
-        <div className="card-light-row">
-          {isAdmin ? (
-            <button
-              className={`card-light-toggle ${isAutoLight ? 'card-light-toggle-auto' : lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}
-              title={isAutoLight ? 'Осветлението е в автоматичен режим' : lightOn ? 'Изключи осветлението' : 'Включи осветлението'}
-              disabled={isAutoLight}
-              onClick={(e) => { e.stopPropagation(); onLightToggle?.() }}
-            >
-              💡 Светлина&nbsp;<span className="light-state-label">{isAutoLight ? 'AUTO' : lightOn ? 'ON' : 'OFF'}</span>
-            </button>
-          ) : (
-            <span className={`card-light-readonly ${isAutoLight ? 'card-light-toggle-auto' : lightOn ? 'card-light-toggle-on' : 'card-light-toggle-off'}`}>
-              💡 Светлина&nbsp;<span className="light-state-label">{isAutoLight ? 'AUTO' : lightOn ? 'ON' : 'OFF'}</span>
-            </span>
-          )}
         </div>
 
         {/* Footer */}
@@ -334,20 +319,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="header-spacer" />
-        <div className="header-center">
-          <h1 className="dashboard-title">MerakOne - smart control</h1>
-          <span className="live-indicator">
-            <span className={`live-dot ${isLive ? 'live-dot-on' : 'live-dot-off'}`} />
-            {isLive ? 'Свързан' : 'Без връзка'}
-          </span>
-        </div>
-        <div className="header-actions">
-          <button className="profile-btn" onClick={() => navigate('/profile')}>Профил</button>
-        </div>
-      </header>
-
       <main className="dashboard-main">
         {loading && <p className="state-msg">Зареждане на устройствата...</p>}
 

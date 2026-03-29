@@ -352,38 +352,6 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
   return (
     <div className="dd-tab-content">
 
-      {/* ── Device type row (admin only) ── */}
-      {isAdmin && deviceTypes?.length > 0 && (
-        <div className="sc-type-row">
-          <span className="sc-type-label">Тип устройство</span>
-          <div className="sc-type-right">
-            <select
-              className="sc-type-select"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-            >
-              <option value="">— не е зададен —</option>
-              {deviceTypes.map((dt) => (
-                <option key={dt.id} value={dt.id}>{dt.display_name}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="sc-type-save-btn"
-              disabled={typeSaving || !selectedType}
-              onClick={handleSaveType}
-            >
-              {typeSaving ? '...' : 'Запази'}
-            </button>
-          </div>
-          {typeMsg && (
-            <span className={`sc-inline-msg ${typeMsg.type === 'ok' ? 'sc-msg-ok' : 'sc-msg-err'}`}>
-              {typeMsg.text}
-            </span>
-          )}
-        </div>
-      )}
-
       <form onSubmit={handleSave}>
         <div className="sc-grid">
 
@@ -396,7 +364,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                 max={30}
                 step={0.5}
                 unit="°C"
-                color="#64d8f0"
+                color="var(--color-temp)"
                 label="Температура"
                 onDecrement={() => setField('temp_target', Math.max(0, parseFloat(form.temp_target) - 0.5).toFixed(1))}
                 onIncrement={() => setField('temp_target', Math.min(30, parseFloat(form.temp_target) + 0.5).toFixed(1))}
@@ -423,7 +391,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                 max={95}
                 step={1}
                 unit="%"
-                color="#2dd4b8"
+                color="var(--color-hum)"
                 label="Влажност"
                 onDecrement={() => setField('hum_target', Math.max(30, parseFloat(form.hum_target) - 1))}
                 onIncrement={() => setField('hum_target', Math.min(95, parseFloat(form.hum_target) + 1))}
@@ -450,7 +418,7 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
                 max={100}
                 step={5}
                 unit="%"
-                color="#a78bfa"
+                color="var(--color-fan)"
                 label="Вентилатор"
                 onDecrement={() => setField('fan_speed', Math.max(0, parseInt(form.fan_speed, 10) - 5))}
                 onIncrement={() => setField('fan_speed', Math.min(100, parseInt(form.fan_speed, 10) + 5))}
@@ -545,16 +513,20 @@ function TabSettings({ settings, tenantId, deviceId, deviceTypes, deviceTypeId, 
 
         </div>
 
-        <div className="sc-save-spacer" />
-
-        <div className={`sc-save-panel${panelVisible ? '' : ' sc-save-panel--hidden'}`}>
+        {/* Floating save FAB — appears only when there are unsaved changes */}
+        <div className={`sc-fab-wrapper${isDirty ? ' sc-fab-wrapper--visible' : ''}`}>
           {saveMsg && (
-            <p className={`dd-save-msg ${saveMsg.type === 'ok' ? 'dd-save-ok' : 'dd-save-err'}`}>
+            <span className={`sc-fab-msg ${saveMsg.type === 'ok' ? 'sc-msg-ok' : 'sc-msg-err'}`}>
               {saveMsg.text}
-            </p>
+            </span>
           )}
-          <button className="sc-save-btn" type="submit" disabled={saving || !isDirty}>
-            {saving ? 'Запазване...' : 'Запази настройките'}
+          <button className="sc-fab" type="submit" disabled={saving}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            {saving ? 'Запазване...' : 'Запази'}
           </button>
         </div>
       </form>
@@ -1265,7 +1237,7 @@ export default function DeviceDetail() {
     <div className="dd-page">
       <header className="dd-header">
         <div className="dd-header-left">
-          <button className="dd-back-btn" onClick={() => navigate('/')}>← Назад</button>
+          <button className="dd-back-btn" onClick={() => navigate('/')}>←</button>
           {nameEditing ? (
             <span className="dd-name-edit">
               <input
@@ -1280,26 +1252,24 @@ export default function DeviceDetail() {
               <button className="dd-name-btn dd-name-cancel" onClick={handleNameCancel} title="Откажи">✗</button>
             </span>
           ) : (
-            <span className="dd-device-name">
+            <h2 className="page-title">
               {deviceName}
+              <span className="page-title-suffix"> — детайли</span>
               {isAdmin && (
                 <button className="dd-name-edit-btn" onClick={handleNameEdit} title="Редактирай името">✏️</button>
               )}
-            </span>
+            </h2>
           )}
           {nameMsg && (
             <span className={`dd-name-msg dd-name-msg-${nameMsg.type}`}>{nameMsg.text}</span>
           )}
+        </div>
+        <div className="dd-header-right">
           {isOffline && <span className="dd-health-badge dd-health-offline">Офлайн</span>}
           {isStale   && <span className="dd-health-badge dd-health-stale">Стар сигнал</span>}
           <span className={`alert-badge ${alertActive ? 'alert-active' : 'alert-ok'}`}>
             {alertActive ? 'Алерт' : 'OK'}
           </span>
-        </div>
-        <div className="dd-header-right">
-          <button className="theme-toggle-btn" onClick={toggleTheme} title="Смени темата">
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
         </div>
       </header>
 

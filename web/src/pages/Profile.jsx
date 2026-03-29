@@ -49,11 +49,6 @@ export default function Profile() {
   return (
     <div className="profile-page">
       <div className="profile-card">
-        <div className="profile-header">
-          <button className="profile-back-btn" onClick={() => navigate('/')}>← Назад</button>
-          <h1 className="login-title" style={{ margin: 0 }}>Профил</h1>
-        </div>
-
         <h2 className="profile-section-title">Смяна на парола</h2>
 
         {success && (

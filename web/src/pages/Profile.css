@@ -1,10 +1,7 @@
 .profile-page {
   min-height: 100vh;
   background: var(--bg-page);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 48px 16px;
+  padding: 28px 24px;
 }
 
 .profile-card {
