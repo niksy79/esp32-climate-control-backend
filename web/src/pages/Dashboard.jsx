@@ -17,13 +17,13 @@ const DEVICE_IMAGE_MAP = {
 
 const MODE_LABELS = {
   normal:               'СУШИЛНЯ',
-  heating:              'Нагряване',
-  beer_cooling:         'Бира',
-  room_temp:            'Стайна t°',
-  product_meat_fish:    'Месо/Риба',
-  product_dairy:        'Млечни',
-  product_ready_food:   'Готова храна',
-  product_vegetables:   'Зеленчуци',
+  heating:              'ПОДГРЯВАНЕ',
+  beer_cooling:         'ВИТРИНА',
+  room_temp:            'СТАЙНА t°',
+  product_meat_fish:    'МЕСО/РИБА',
+  product_dairy:        'МЛЕЧНИ',
+  product_ready_food:   'ГОТОВА ХРАНА',
+  product_vegetables:   'ЗЕЛЕНЧУЦИ',
 }
 
 const REFRESH_INTERVAL_MS = 60_000
@@ -44,7 +44,7 @@ function DeviceCard({ device, deviceTypes, isAdmin, onLightToggle, onDelete, onC
 
   const compressorOn = device.deviceStates?.compressor  ?? false
   const extraFanOn   = device.deviceStates?.extra_fan   ?? false
-  const lightOn      = device.deviceStates?.light       ?? false
+  const lightOn      = device.lightState ?? device.deviceStates?.light ?? false
   const heatingOn    = device.deviceStates?.heating     ?? false
   const isAutoLight  = device.lightMode === 'auto'
   const hasErrors    = device.hasErrors
@@ -244,6 +244,7 @@ export default function Dashboard() {
               activeMode:   status?.active_mode                ?? null,
               fanSpeed:     status?.fan_settings?.speed        ?? null,
               lightMode:    status?.light_mode                 ?? null,
+              lightState:   status?.light_state                ?? false,
             }
           } catch (err) {
             console.error(`fetchAll: device ${deviceId}:`, err)
@@ -307,7 +308,7 @@ export default function Dashboard() {
         setDevices((prev) =>
           prev.map((d) =>
             d.deviceId === deviceId
-              ? { ...d, deviceStates: { ...d.deviceStates, light: newState } }
+              ? { ...d, lightState: newState, deviceStates: { ...d.deviceStates, light: newState } }
               : d
           )
         )
@@ -338,7 +339,7 @@ export default function Dashboard() {
                 device={d}
                 deviceTypes={deviceTypes}
                 isAdmin={isAdmin}
-                onLightToggle={() => handleLightToggle(d.deviceId, d.deviceStates?.light ?? false)}
+                onLightToggle={() => handleLightToggle(d.deviceId, d.lightState ?? d.deviceStates?.light ?? false)}
                 onDelete={async () => {
                   await deleteDevice(tenantId, d.deviceId)
                   setDevices((prev) => prev.filter((x) => x.deviceId !== d.deviceId))

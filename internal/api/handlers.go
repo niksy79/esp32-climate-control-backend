@@ -184,6 +184,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"compressor_stats": dc.CompressorStats,
 		"fan_settings":     fs,
 		"light_mode":       lightModeStr,
+		"light_state":      ls.State,
 		"has_errors":       h.svc.Errors.HasActiveErrors(tenantID, deviceID),
 		"critical_errors":  h.svc.Errors.HasCriticalErrors(tenantID, deviceID),
 		"alert_firing":     h.svc.Alerts.HasRecentlyFired(tenantID, deviceID),
