@@ -120,34 +120,36 @@ function TabHistory({ history, days, setDays }) {
           </button>
         ))}
       </div>
-      <div className="dd-chart-wrap">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+      <div className="dd-chart-wrap" ref={(el) => { el && el.setAttribute('data-narrow', el.offsetWidth < 500 ? '1' : '') }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 6, right: 4, left: -4, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
             <XAxis
               dataKey="time"
-              tick={hideXLabels ? false : { fill: '#64748b', fontSize: 11 }}
+              tick={hideXLabels ? false : { fill: '#64748b', fontSize: 10 }}
               tickLine={false}
             />
             <YAxis
               yAxisId="temp"
               orientation="left"
-              tick={{ fill: '#64748b', fontSize: 11 }}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
+              width={32}
               unit="°"
             />
             <YAxis
               yAxisId="hum"
               orientation="right"
-              tick={{ fill: '#64748b', fontSize: 11 }}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
+              width={32}
               unit="%"
             />
             <Tooltip content={<ChartTooltip />} />
             <Legend
-              wrapperStyle={{ fontSize: '12px', color: '#94a3b8', paddingTop: '8px' }}
+              wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '4px' }}
             />
             <Line
               yAxisId="temp"
@@ -894,7 +896,7 @@ function TabDiagnostics({ cycles, errors }) {
       ) : (
         <>
           <div className="dd-chart-wrap">
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
                 <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} />
@@ -1256,7 +1258,11 @@ export default function DeviceDetail() {
               {deviceName}
               <span className="page-title-suffix"> — детайли</span>
               {isAdmin && (
-                <button className="dd-name-edit-btn" onClick={handleNameEdit} title="Редактирай името">✏️</button>
+                <button className="dd-name-edit-btn" onClick={handleNameEdit} title="Редактирай името">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>
+                  </svg>
+                </button>
               )}
             </h2>
           )}

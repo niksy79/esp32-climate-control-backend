@@ -1,7 +1,7 @@
 .users-page {
   min-height: 100vh;
   background: var(--bg-page);
-  padding: 48px 28px;
+  padding: 24px;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text-body);
 }
@@ -11,6 +11,16 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .users-page {
+    padding: 16px 14px;
+  }
+
+  .users-container {
+    gap: 16px;
+  }
 }
 
 .users-header {

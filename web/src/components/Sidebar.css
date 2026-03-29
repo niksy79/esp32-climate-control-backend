@@ -188,6 +188,8 @@
 
 .app-content {
   flex: 1;
+  min-width: 0;          /* prevent flex child from expanding beyond container */
+  overflow-x: hidden;    /* clip any content wider than viewport */
   margin-left: 240px;
   min-height: 100dvh;
 }
@@ -216,7 +218,7 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* ── Mobile: sidebar slides in from left ─────────────────── */
+/* ── Mobile ───────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
@@ -232,5 +234,31 @@
 
   .app-content {
     margin-left: 0;
+  }
+
+  .app-header {
+    padding: 0 14px 0 56px;
+    min-height: 54px;
+  }
+
+  .app-header .page-title {
+    font-size: 1.05rem;
+  }
+
+  .add-device-label {
+    display: none;
+  }
+
+  .add-device-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .add-device-btn svg {
+    width: 22px;
+    height: 22px;
   }
 }

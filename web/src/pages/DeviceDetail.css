@@ -27,6 +27,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .dd-header-right {
@@ -86,13 +87,15 @@
 .dd-name-edit-btn {
   background: none;
   border: none;
-  padding: 0 0.1rem;
+  padding: 2px;
   cursor: pointer;
-  font-size: 0.8rem;
-  opacity: 0.5;
   line-height: 1;
+  color: var(--text-dim);
+  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
 }
-.dd-name-edit-btn:hover { opacity: 1; }
+.dd-name-edit-btn:hover { opacity: 1; color: var(--text-secondary); }
 
 .dd-name-edit {
   display: inline-flex;
@@ -300,6 +303,15 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px 12px 12px;
+  height: 320px;
+}
+
+@media (max-width: 768px) {
+  .dd-chart-wrap {
+    padding: 10px 2px 6px;
+    border-radius: 10px;
+    height: 220px;
+  }
 }
 
 .chart-tooltip {
@@ -660,9 +672,12 @@
   padding: 0 4px;
 }
 
-@media (max-width: 700px) {
-  .dd-alert-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .dd-alert-grid {
+    grid-template-columns: 1fr;
+  }
 }
+
 
 .dd-alert-rule-card {
   border-color: rgba(100, 116, 139, 0.2);
@@ -806,10 +821,14 @@
   padding: 0 4px;
 }
 
-
-@media (max-width: 600px) {
-  .dd-mode-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .dd-mode-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
+
+
 
 .dd-mode-card {
   position: relative;
@@ -1105,11 +1124,40 @@
 }
 
 /* ── Responsive ───────────────────────────────────────────── */
-@media (max-width: 600px) {
-  .dd-header,
+@media (max-width: 768px) {
+  .dd-header {
+    padding: 0 14px;
+    min-height: 54px;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .dd-header-left {
+    gap: 8px;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .dd-header-right {
+    display: none;
+  }
+
+  .page-title {
+    font-size: 1.0625rem;
+    text-align: center;
+  }
+
+  .page-title-suffix {
+    display: none;
+  }
+
+  .dd-back-btn {
+    padding: 5px 8px;
+    font-size: 0.875rem;
+  }
+
   .dd-tab-content {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding: 16px 14px;
   }
 
   .dd-tabs {
@@ -1118,7 +1166,9 @@
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
-    display: block;
+    display: flex;
+    flex-wrap: nowrap;
+    max-width: 100%;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -1127,17 +1177,70 @@
   }
 
   .dd-tab {
-    display: inline-block;
-    padding: 10px 16px;
-    font-size: 0.8125rem;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 0.875rem;
   }
   .dd-tab:first-child {
-    margin-left: 16px;
+    margin-left: 14px;
   }
   .dd-tab:last-child {
-    margin-right: 16px;
+    margin-right: 14px;
   }
 
+  /* Settings cards */
+  .sc-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .sc-card {
+    border-radius: 12px;
+  }
+
+  .arc-gauge-label {
+    font-size: 13px;
+  }
+
+  .arc-gauge-number {
+    font-size: 34px;
+  }
+
+  .sc-row-label {
+    font-size: 0.9375rem;
+  }
+
+  .sc-stepper-val {
+    font-size: 0.9375rem;
+  }
+
+  .sc-stepper-btn {
+    font-size: 1.25rem;
+    width: 38px;
+    height: 38px;
+  }
+
+  /* Mode cards */
+  .dd-mode-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Alert grid */
+  .dd-alert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* FAB */
+  .sc-fab-wrapper {
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .sc-fab {
+    padding: 10px 18px;
+    font-size: 0.8125rem;
+  }
 }
 
 /* ── Light toggle button (room light) ────────────────────── */
@@ -1371,10 +1474,14 @@
   margin-bottom: 20px;
 }
 
-
-@media (max-width: 700px) {
-  .sc-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .sc-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
 }
+
+
 
 /* ── Card ─────────────────────────────────────────────────── */
 .sc-card {
@@ -1861,31 +1968,6 @@
 /* Legacy spacer — no longer needed */
 .sc-save-spacer { display: none; }
 
-@media (max-width: 768px) {
-  .sc-fab-wrapper {
-    right: 16px;
-    bottom: 16px;
-  }
-
-  .sc-save-panel {
-    position: fixed;
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    left: 0;
-    right: 0;
-    padding: 0 16px 8px;
-    z-index: 90;
-    transform: translateY(0);
-    will-change: transform;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .sc-save-panel--hidden {
-    transform: none;
-  }
-  .sc-save-spacer {
-    display: block;
-    height: 80px;
-  }
-}
 
 /* ── Save button ──────────────────────────────────────────── */
 .sc-save-btn {
